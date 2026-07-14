@@ -22,9 +22,10 @@
 - image record deletion protection 尚未提供刪除／回收流程；v2 manifest 先將現有資產標記為 protected，且沒有自動刪檔。
 - Slides viewer 以 HTML slide 為主，圖片 slide 與完整匯出留待後續版本。
 - tldraw 與 MCP ext-apps 版本更新時，可能需要調整 API 相容性。
-- Production bundle 的主要 JS 約 5.6 MB；原生 Widget inline 後約 31.8 MB，v0.2 應評估拆包與縮減 host bridge 體積。
+- Production bundle 的主要 JS 約 5.6 MB；Widget inline 後約 6.05 MB。HTML 組裝使用 replacement callback，避免 minified bundle 的 `$&`／`$``／`$'` 被 `String.replace` 展開造成重複內容。Apps SDK 文件未公布固定 byte limit，因此 probe 以 8 MiB 作為回歸防護線。
 - 容器內 Chromium 即使開啟空白頁也會因系統限制逾時，因此本次沒有完成像素級瀏覽器截圖檢查；Vite build 與 MCP Widget resource probe 均已通過。
 - `codex review --uncommitted` 對 53-file 初始 repo 的全量 review 在 184 秒逾時，未產生可用報告；改採針對 storage/manifest 提交協定的人工審查，並修正內容世代原子性與損壞 fallback 依賴問題。
+- TypeScript 評估結論：目前不做全面重寫；先以 JSDoc／`.d.ts` 建立 bridge 與 storage 邊界，再分階段轉換前端。MCP `.mjs` 直接由 Node 執行，若立即改 `.ts` 會牽涉 `tsx` runtime 或額外編譯輸出與 plugin entrypoint。
 
 ## 已完成驗證
 
@@ -32,6 +33,7 @@
 - `npm test`：11/11 通過（path、storage v2、immutable generations/assets、migration、recovery、prompt）。
 - `npm run build`：Vite production build 通過。
 - `npm run probe:mcp`：11 個 MCP tools、render tool、Widget resource 與 host bridge 通過。
+- `npm run probe:mcp`：另驗證 Widget HTML 未重複且小於 8 MiB（目前約 6.05 MB）。
 - `npm run probe:http`：Streamable HTTP `/mcp` 與 11 個 tools 通過。
 - Codex 安裝快取：`coart@coart-public` 已安裝，且從快取執行 stdio/HTTP probes 均通過。
 

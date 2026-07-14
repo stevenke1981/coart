@@ -53,12 +53,20 @@ try {
   const html = widget.contents?.[0]?.text || ''
   if (!html.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!html.includes('<style>') || !html.includes('<script>')) throw new Error('Widget build was not inlined.')
+  const widgetBytes = Buffer.byteLength(html)
+  const widgetHtmlGuardBytes = 8 * 1024 * 1024
+  if (widgetBytes > widgetHtmlGuardBytes) {
+    throw new Error(`Widget HTML unexpectedly exceeds the ${widgetHtmlGuardBytes}-byte regression guard (${widgetBytes}).`)
+  }
+  if (!html.startsWith('<!doctype html>') || !html.trimEnd().endsWith('</html>')) {
+    throw new Error('Widget HTML has an invalid document envelope.')
+  }
 
   console.log(JSON.stringify({
     ok: true,
     tools: toolNames.length,
     widgetUri,
-    widgetBytes: Buffer.byteLength(html)
+    widgetBytes
   }))
 } finally {
   await client.close()

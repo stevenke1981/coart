@@ -34,3 +34,10 @@
 - [ ] image record deletion protection
 - [ ] Playwright Widget UI 測試
 - [ ] Windows 升級／原地更新腳本
+
+## TypeScript 漸進路線（不阻塞目前修復）
+
+- [ ] 先為 `window.coartMcp`、`window.openai` 與 storage records 加上 JSDoc／`.d.ts` 邊界型別
+- [ ] 將 `src/lib/coartClient.js`、prompt 與 autosave hook 轉為 `.ts`
+- [ ] 將 React UI 與 tldraw custom shape props 轉為 `.tsx`
+- [ ] 最後再評估 MCP/storage `.mjs` 的 TypeScript 編譯流程（避免改變 plugin entrypoint）

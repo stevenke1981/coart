@@ -1,4 +1,4 @@
-# Coart v0.2.0 Build Report
+# Coart v0.2.1 Build Report
 
 日期：2026-07-14
 
@@ -13,7 +13,7 @@
 | `render_coart_canvas` | 通過 |
 | Widget resource list/read | 通過 |
 | MCP Apps host bridge injection | 通過 |
-| Widget inline HTML | 通過，約 31.8 MB |
+| Widget inline HTML | 通過，約 6.05 MB；已加入 8 MiB 回歸防護 |
 | Streamable HTTP `/mcp` | 通過，共 11 個工具 |
 | Plugin manifest validator | 通過 |
 
@@ -24,7 +24,7 @@
 - `dist/assets/index-*.js`
 - `dist/assets/sanitizeSvg-*.js`
 
-主要 bundle 約 5.6 MB，Vite 提示 chunk 大於 500 kB。這不阻擋 v0.1 執行，但列為 v0.2 的效能改善項目。
+主要 bundle 約 5.6 MB，Vite 提示 chunk 大於 500 kB。Widget HTML 曾因 `String.replace` replacement-string semantics 被錯誤放大到 31.8 MB；改用 replacement callback 後恢復約 6.05 MB。Apps SDK 官方文件沒有公布固定 HTML byte limit，因此保留 8 MiB regression guard。
 
 ## 本輪實際發現並修正
 

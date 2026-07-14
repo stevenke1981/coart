@@ -1,6 +1,6 @@
 {
   "name": "coart-canvas",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "A clean-room Codex native infinite-canvas widget for AI image, HTML, slides, and annotation workflows.",

@@ -145,7 +145,9 @@ export async function widgetHtml() {
   if (cachedHtml) return cachedHtml
   const base = await inlineBuild()
   const injected = `<script>${appsBundle().replaceAll('</script', '<\\/script')}</script><script>${bridgeScript().replaceAll('</script', '<\\/script')}</script>`
-  cachedHtml = base.includes('</head>') ? base.replace('</head>', `${injected}</head>`) : `${injected}${base}`
+  // Use a replacement function: minified bundles can contain `$&`, `$`` or `$'`,
+  // which String#replace interprets when a replacement string is supplied.
+  cachedHtml = base.includes('</head>') ? base.replace('</head>', () => `${injected}</head>`) : `${injected}${base}`
   return cachedHtml
 }
 

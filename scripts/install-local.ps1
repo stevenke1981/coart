@@ -19,7 +19,7 @@ try {
   }
 
   $installed = (codex plugin list --json | ConvertFrom-Json).installed |
-    Where-Object { $_.pluginId -eq 'coart@coart-public' -and $_.version -eq '0.2.0' }
+    Where-Object { $_.pluginId -eq 'coart@coart-public' -and $_.version -eq '0.2.1' }
   if (-not $installed) { codex plugin add coart@coart-public --json }
   Write-Host "Coart installed from $Source"
   Write-Host "Start a new Codex task, then ask: Open the Coart canvas for this project."
