@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { decodeWidgetHtml, WIDGET_HTML_GUARD_BYTES } from '../mcp/lib/widget.mjs'
+import { decodeWidgetHtml, LEGACY_WIDGET_URIS, WIDGET_HTML_GUARD_BYTES, WIDGET_URI } from '../mcp/lib/widget.mjs'
 
 const expectedTools = [
   'render_coart_canvas',
@@ -37,24 +37,49 @@ try {
 
   const rendered = await client.callTool({
     name: 'render_coart_canvas',
-    arguments: { projectDir: process.cwd(), displayMode: 'inline' }
+    arguments: { projectDir: process.cwd() }
   })
   if (rendered.isError) throw new Error('render_coart_canvas returned isError.')
   if (rendered.structuredContent?.widget !== 'coart-canvas-widget') {
     throw new Error('render_coart_canvas returned an unexpected widget payload.')
   }
-
-  const resources = await client.listResources()
-  const widgetUri = 'ui://widget/coart/canvas.html'
-  if (!resources.resources.some((resource) => resource.uri === widgetUri)) {
-    throw new Error(`Missing MCP resource: ${widgetUri}`)
+  if (rendered.structuredContent?.preferredDisplayMode !== 'inline') {
+    throw new Error('render_coart_canvas must default to inline mode for Codex Desktop stability.')
   }
 
-  const widget = await client.readResource({ uri: widgetUri })
+  const fullscreenRendered = await client.callTool({
+    name: 'render_coart_canvas',
+    arguments: { projectDir: process.cwd(), displayMode: 'fullscreen' }
+  })
+  if (fullscreenRendered.structuredContent?.preferredDisplayMode !== 'inline') {
+    throw new Error('render_coart_canvas must coerce fullscreen to inline while the Codex Desktop host bug is active.')
+  }
+  if (fullscreenRendered.structuredContent?.requestedDisplayMode !== 'fullscreen') {
+    throw new Error('render_coart_canvas did not retain the requested display mode for diagnostics.')
+  }
+
+  const resources = await client.listResources()
+  if (!resources.resources.some((resource) => resource.uri === WIDGET_URI)) {
+    throw new Error(`Missing MCP resource: ${WIDGET_URI}`)
+  }
+  for (const legacyUri of LEGACY_WIDGET_URIS) {
+    if (!resources.resources.some((resource) => resource.uri === legacyUri)) {
+      throw new Error(`Missing legacy MCP resource: ${legacyUri}`)
+    }
+  }
+
+  const widget = await client.readResource({ uri: WIDGET_URI })
   const html = widget.contents?.[0]?.text || ''
   const decodedHtml = decodeWidgetHtml(html)
   if (!decodedHtml.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!/app\.onteardown\s*=/.test(decodedHtml)) throw new Error('Widget bridge teardown handler was not registered.')
+  if (!decodedHtml.includes("availableDisplayModes: ['inline']")) throw new Error('Widget must advertise inline-only display support.')
+  if (!decodedHtml.includes('sendSizeChanged') || decodedHtml.includes('layoutPulseTimer = setInterval')) {
+    throw new Error('Widget bridge must publish one stable size without a recurring layout pulse.')
+  }
+  if (html.includes('data-coart-loader') || html.includes('DecompressionStream') || html.includes('document.importNode')) {
+    throw new Error('Widget unexpectedly contains the legacy runtime document-rewrite loader.')
+  }
   if (!decodedHtml.includes('<style>') || !decodedHtml.includes('<script>')) throw new Error('Widget build was not inlined.')
   if (!decodedHtml.includes('DOMParser') || !decodedHtml.includes('createObjectURL') || !decodedHtml.includes('image/svg+xml')) {
     throw new Error('Widget did not include the self-contained SVG icon path for tldraw icons.')
@@ -66,7 +91,7 @@ try {
   }
   const widgetBytes = Buffer.byteLength(html)
   if (widgetBytes > WIDGET_HTML_GUARD_BYTES) {
-    throw new Error(`Widget HTML unexpectedly exceeds the ${WIDGET_HTML_GUARD_BYTES}-byte compressed-loader guard (${widgetBytes}).`)
+    throw new Error(`Widget HTML unexpectedly exceeds the ${WIDGET_HTML_GUARD_BYTES}-byte inline resource guard (${widgetBytes}).`)
   }
   if (!html.startsWith('<!doctype html>') || !html.trimEnd().endsWith('</html>')) {
     throw new Error('Widget HTML has an invalid document envelope.')
@@ -75,7 +100,7 @@ try {
   console.log(JSON.stringify({
     ok: true,
     tools: toolNames.length,
-    widgetUri,
+    widgetUri: WIDGET_URI,
     widgetBytes,
     decodedWidgetBytes: Buffer.byteLength(decodedHtml)
   }))

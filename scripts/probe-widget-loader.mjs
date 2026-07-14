@@ -56,7 +56,9 @@ if (!executable) {
 } else {
   const baseHtml = await widgetHtml()
   const iconProbe = `<script>setTimeout(() => { const icon = document.querySelector('.tlui-icon'); const mask = icon?.style.mask || icon?.style.webkitMask || ''; document.documentElement.setAttribute('data-coart-icon-mask', mask); }, 1500)</script>`
-  const html = baseHtml.replace('</body>', `${iconProbe}</body>`)
+  const bodyClose = baseHtml.lastIndexOf('</body>')
+  if (bodyClose < 0) throw new Error('Widget HTML is missing its outer closing body tag.')
+  const html = `${baseHtml.slice(0, bodyClose)}${iconProbe}${baseHtml.slice(bodyClose)}`
   const server = http.createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
     response.end(html)

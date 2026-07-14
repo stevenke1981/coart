@@ -23,12 +23,16 @@
 - [x] storage unit tests
 - [x] ChatGPT Developer Mode Streamable HTTP `/mcp` 與 probe
 - [x] Codex/ChatGPT plugin marketplace 安裝包裝
-- [x] MCP Widget gzip loader、外層 head 注入與 Chromium mount smoke
+- [x] MCP Widget 直接自包含 HTML、外層 head 注入與 Chromium mount smoke
 - [x] 前端 JavaScript 遷移為嚴格 TypeScript/TSX
 - [x] Widget hydration 完成前停用 autosave，避免初始空白快照覆蓋既有畫布
 - [x] MCP Apps resource teardown handler，避免切換 Codex 對話時 Widget 進入白頁
-- [x] 修正 Widget 壓縮載入器在使用 `document.write()` 時無法執行 `<script type="module">` 導致 ChatGPT Codex 載入後白屏的問題。改用 DOMParser 與手動建立 script 節點執行。
+- [x] 移除 runtime gzip／DOMParser document rewrite；將 Widget 壓至 4 MiB 以下並直接執行 inline module，避免 first paint 後重建 `<head>`／`<body>`。
 - [x] Widget production build 將 tldraw SVG sprite 拆成單一 icon 的 `blob:` URL，避免 MCP `data:` 文件的 fragment URL 導致 tldraw 工具圖示變成方塊。
+- [x] Codex Desktop v0.2.6 固定採 inline Widget，版本化 resource URI 並保留 legacy alias，避開 stale fullscreen side-panel registration。
+- [x] 移除無效的 recurring height pulse；只送一次穩定 intrinsic size，停止 Codex detached webview 的 ResizeObserver error storm。
+- [x] tldraw 自包含資產由 16 個字型縮為 4 個，移除未使用的 provider icon payload，Widget HTML 由約 4.36 MB 降至約 2.86 MB。
+- [x] Windows 本機安裝腳本加入 `-ForceReinstall` 與版本不符自動升級，可更新既有安裝快取至 0.2.6。
 
 ## 下一版（v0.2）
 
@@ -39,7 +43,6 @@
 - [ ] 多格式 export（ZIP/PDF/PPTX）
 - [ ] image record deletion protection
 - [ ] Playwright Widget UI 測試（目前已有可移植 Chromium headless smoke）
-- [ ] Windows 升級／原地更新腳本
 
 ## 公開功能對照後的優先工作（clean-room，不複製參考專案）
 

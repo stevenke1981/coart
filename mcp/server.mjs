@@ -57,7 +57,11 @@ registerAppTool(server, 'render_coart_canvas', {
     widget: 'coart-canvas-widget',
     title: input.title || 'Coart Canvas',
     rendering: 'native-widget',
-    preferredDisplayMode: input.displayMode || 'fullscreen',
+    // Codex Desktop currently reuses MCP App state by resource URI. A stale
+    // fullscreen side-panel registration can therefore hijack later inline
+    // renders. This release deliberately stays inline-only.
+    preferredDisplayMode: 'inline',
+    requestedDisplayMode: input.displayMode || 'inline',
     projectDir: paths.projectDir,
     canvasDir: paths.canvasDir,
     staticDir: WIDGET_BUILD_DIR

@@ -5,16 +5,15 @@ import { readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { gunzipSync, gzipSync } from 'node:zlib'
 import { RESOURCE_MIME_TYPE, registerAppResource } from '@modelcontextprotocol/ext-apps/server'
 
 const require = createRequire(import.meta.url)
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const manifest = JSON.parse(readFileSync(join(root, '.codex-plugin', 'plugin.json'), 'utf8'))
-export const WIDGET_URI = 'ui://widget/coart/canvas.html'
+export const LEGACY_WIDGET_URIS = ['ui://widget/coart/canvas.html']
+export const WIDGET_URI = `ui://widget/coart/canvas-v${manifest.version.replaceAll('.', '-')}.html`
 export const WIDGET_BUILD_DIR = join(tmpdir(), `coart-widget-${manifest.version}`)
 export const WIDGET_HTML_GUARD_BYTES = 4 * 1024 * 1024
-const WIDGET_LOADER_MARKER = 'coart-widget-gzip-v1'
 let cachedHtml = null
 let cachedAppsBundle = null
 
@@ -116,7 +115,7 @@ function bridgeScript() {
           await ready;
           return app.sendMessage({ role: 'user', content: [{ type: 'text', text: String(message?.prompt || message || '') }] });
         },
-        requestDisplayMode: async (mode) => { await ready; return app.requestDisplayMode(typeof mode === 'string' ? { mode } : mode); },
+        requestDisplayMode: async () => { await ready; return app.requestDisplayMode({ mode: 'inline' }); },
         getHostCapabilities: () => app.getHostCapabilities?.()
       };
     };
@@ -128,7 +127,11 @@ function bridgeScript() {
         app.requestDisplayMode({ mode: payload.preferredDisplayMode }).catch(() => {});
       }
     };
-    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
+    const notifyHostSize = () => app?.sendSizeChanged?.({
+      width: Math.max(1, Math.round(window.innerWidth)),
+      height: 720
+    });
+    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline'] }, { autoResize: false });
     // MCP Apps hosts send ui/resource-teardown before unmounting a view, for
     // example when the user switches conversations. Register the handler
     // before connect() so the SDK can answer the lifecycle request cleanly.
@@ -144,6 +147,7 @@ function bridgeScript() {
       install();
       contextChanged(app.getHostContext?.());
       publish({ hostCapabilities: app.getHostCapabilities?.(), hostInfo: app.getHostVersion?.() });
+      notifyHostSize();
     }).catch((error) => {
       globalThis.__COART_BRIDGE_ERROR__ = error;
       throw error;
@@ -151,74 +155,8 @@ function bridgeScript() {
   })();`
 }
 
-function compressedWidgetHtml(source) {
-  const payload = gzipSync(Buffer.from(source, 'utf8'), { level: 9 }).toString('base64')
-  const encodedPayload = JSON.stringify(payload)
-  // document.write() does NOT execute <script type="module"> per the HTML spec.
-  // The React/tldraw app is bundled as a module script and would silently fail.
-  // Instead, decompress the HTML, parse it with DOMParser, then rebuild the
-  // live document by importing nodes and re-creating script elements so both
-  // classic and module scripts execute correctly.
-  return `<!doctype html>
-<html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
-    <title>Coart Canvas</title>
-    <script data-coart-loader="${WIDGET_LOADER_MARKER}">
-      (async () => {
-        const encoded = atob(${encodedPayload});
-        const compressed = Uint8Array.from(encoded, (character) => character.charCodeAt(0));
-        const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
-        const html = await new Response(stream).text();
-        const parsed = new DOMParser().parseFromString(html, 'text/html');
-        // Replace <head> contents (styles, meta, non-script elements)
-        while (document.head.firstChild) document.head.removeChild(document.head.firstChild);
-        for (const node of Array.from(parsed.head.childNodes)) {
-          if (node.nodeName === 'SCRIPT') continue;
-          document.head.appendChild(document.importNode(node, true));
-        }
-        // Replace <body> contents (the #root div, etc.)
-        while (document.body.firstChild) document.body.removeChild(document.body.firstChild);
-        for (const node of Array.from(parsed.body.childNodes)) {
-          if (node.nodeName === 'SCRIPT') continue;
-          document.body.appendChild(document.importNode(node, true));
-        }
-        // Copy <html> attributes (lang, etc.)
-        for (const attr of Array.from(parsed.documentElement.attributes)) {
-          document.documentElement.setAttribute(attr.name, attr.value);
-        }
-        // Re-create script elements so the browser executes them.
-        // DOMParser-parsed scripts are inert; we must create fresh elements.
-        const allScripts = [
-          ...Array.from(parsed.head.querySelectorAll('script')).map((s) => ({ script: s, target: document.head })),
-          ...Array.from(parsed.body.querySelectorAll('script')).map((s) => ({ script: s, target: document.body }))
-        ];
-        for (const { script: src, target } of allScripts) {
-          const el = document.createElement('script');
-          for (const attr of Array.from(src.attributes)) el.setAttribute(attr.name, attr.value);
-          if (src.textContent) el.textContent = src.textContent;
-          target.appendChild(el);
-        }
-      })().catch((error) => {
-        document.body.textContent = 'Coart widget failed to load.';
-        console.error(error);
-      });
-    </script>
-  </head>
-  <body>
-    <p>Loading Coart canvas…</p>
-  </body>
-</html>`
-}
-
 export function decodeWidgetHtml(source) {
-  const marker = `data-coart-loader="${WIDGET_LOADER_MARKER}"`
-  if (!source.includes(marker)) return source
-  const match = source.match(/const encoded = atob\(("[A-Za-z0-9+/=]+")\)/)
-  if (!match) throw new Error('Compressed Coart Widget payload is missing.')
-  return gunzipSync(Buffer.from(JSON.parse(match[1]), 'base64')).toString('utf8')
+  return source
 }
 
 export async function widgetHtml() {
@@ -232,7 +170,14 @@ export async function widgetHtml() {
   const assembled = headClose >= 0
     ? `${base.slice(0, headClose)}${injected}${base.slice(headClose)}`
     : `${injected}${base}`
-  cachedHtml = compressedWidgetHtml(assembled)
+  const bytes = Buffer.byteLength(assembled)
+  if (bytes > WIDGET_HTML_GUARD_BYTES) {
+    throw new Error(`Coart Widget exceeds the ${WIDGET_HTML_GUARD_BYTES}-byte inline resource guard (${bytes}).`)
+  }
+  // Return the final document directly. Rebuilding <head>/<body> at runtime
+  // caused Codex Desktop's detached MCP webview to lose its composited surface
+  // after first paint, and multiplied peak memory for every restored task.
+  cachedHtml = assembled
   return cachedHtml
 }
 
@@ -243,11 +188,13 @@ export function registerCoartWidgetResource(server) {
     'openai/widgetPrefersBorder': false,
     'openai/widgetCSP': { connect_domains: [], resource_domains: ['data:', 'blob:'], frame_domains: ['data:', 'blob:'] }
   }
-  registerAppResource(server, 'coart-canvas-widget', WIDGET_URI, {
-    title: 'Coart Canvas',
-    description: 'A tldraw-powered native Codex canvas with project-local persistence.',
-    _meta: metadata
-  }, async () => ({ contents: [{ uri: WIDGET_URI, mimeType: RESOURCE_MIME_TYPE, text: await widgetHtml(), _meta: metadata }] }))
+  for (const [index, uri] of [WIDGET_URI, ...LEGACY_WIDGET_URIS].entries()) {
+    registerAppResource(server, index === 0 ? `coart-canvas-widget-${manifest.version}` : `coart-canvas-widget-legacy-${index}`, uri, {
+      title: 'Coart Canvas',
+      description: 'A tldraw-powered native Codex canvas with project-local persistence.',
+      _meta: metadata
+    }, async () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: await widgetHtml(), _meta: metadata }] }))
+  }
 }
 
 async function replaceAsync(source, pattern, replacer) {

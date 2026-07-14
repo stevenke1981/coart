@@ -10,12 +10,13 @@ description: Open the native Coart tldraw infinite canvas inside Codex for the a
 3. The native widget stores its state under `<projectDir>/canvas`.
 4. Do not start a localhost browser server for normal use.
 5. If the tool is unavailable immediately after installation, open a new Codex conversation so plugin tools are reloaded.
+6. Always use `inline` mode in Codex Desktop. Coart v0.2.6 keeps the Widget as a direct sub-4 MB HTML document; do not restore the legacy gzip loader that rebuilt `<head>` and `<body>` after first paint.
 
 Example:
 
 ```json
 {
   "projectDir": "C:/work/my-project",
-  "displayMode": "fullscreen"
+  "displayMode": "inline"
 }
 ```
