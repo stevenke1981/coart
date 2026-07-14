@@ -1,0 +1,20 @@
+{
+  "name": "coart-public",
+  "interface": {
+    "displayName": "Coart"
+  },
+  "plugins": [
+    {
+      "name": "coart",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

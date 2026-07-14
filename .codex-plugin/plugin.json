@@ -1,0 +1,36 @@
+{
+  "name": "coart",
+  "version": "0.2.0",
+  "description": "A native Codex infinite-canvas widget for visual ideation, AI images, HTML pages, slides, and annotation-led iteration.",
+  "author": {
+    "name": "Coart contributors",
+    "url": "https://github.com/stevenke1981"
+  },
+  "homepage": "https://github.com/stevenke1981/coart#readme",
+  "repository": "https://github.com/stevenke1981/coart",
+  "license": "MIT",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Coart",
+    "developerName": "Coart contributors",
+    "shortDescription": "Think, generate, annotate, and present on an infinite canvas.",
+    "longDescription": "Coart combines a tldraw-powered native Codex widget with project-local storage and MCP tools for AI image slots, HTML drafts, slide decks, references, exports, and annotation-driven revisions.",
+    "category": "Productivity",
+    "brandColor": "#6D5EF7",
+    "capabilities": [
+      "Interactive infinite canvas",
+      "Native Codex widget",
+      "AI image slots",
+      "AI HTML drafts",
+      "AI slide decks",
+      "Annotation-driven revisions",
+      "Project-local persistence"
+    ],
+    "defaultPrompt": [
+      "Open the Coart canvas for this project.",
+      "Generate an image in the selected Coart AI image slot.",
+      "Use my selected Coart annotations to create a clean revision."
+    ]
+  }
+}

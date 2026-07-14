@@ -1,0 +1,3 @@
+[mcp_servers.coart_mcp]
+command = "node"
+args = ["./scripts/start-mcp.mjs"]
