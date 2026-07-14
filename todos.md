@@ -26,6 +26,8 @@
 - [x] MCP Widget 直接自包含 HTML、外層 head 注入與 Chromium mount smoke
 - [x] 前端 JavaScript 遷移為嚴格 TypeScript/TSX
 - [x] tldraw -> Fabric.js 畫布遷移：inline 與 standalone 共用 canvas facade，保留 Coart schema/store 與 project-local assets
+- [x] Fabric Widget 支援 inline／sidebar 顯示模式；保留 fullscreen 請求的 inline 相容 fallback
+- [x] Fabric 畫布框線拖曳工具與 IText 直接文字編輯（新增即進入編輯、既有文字可雙擊）
 - [x] Widget hydration 完成前停用 autosave，避免初始空白快照覆蓋既有畫布
 - [x] MCP Apps resource teardown handler，避免切換 Codex 對話時 Widget 進入白頁
 - [x] 移除 runtime gzip／DOMParser document rewrite；將 Widget 壓至 4 MiB 以下並直接執行 inline module，避免 first paint 後重建 `<head>`／`<body>`。
@@ -46,7 +48,7 @@
 
 - [x] 安裝 preflight 檢查 `codex features list` 的 `enable_mcp_apps`，在宿主旗標關閉時顯示可操作錯誤與重啟提示。
 - [ ] page asset lazy loading
-- [ ] HTML DOM 文字編輯器
+- [ ] HTML DOM 文字編輯器（不包含 Fabric 畫布上的一般文字物件）
 - [ ] 圖片 slide 與混合 deck
 - [ ] Slides 拖放排序
 - [ ] 多格式 export（ZIP/PDF/PPTX）

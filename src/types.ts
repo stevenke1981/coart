@@ -147,6 +147,13 @@ export interface CanvasViewportBounds {
   h: number
 }
 
+export type CanvasTool = 'select' | 'draw' | 'rectangle' | 'text'
+
+export interface CanvasPoint {
+  x: number
+  y: number
+}
+
 export interface CanvasImageOptions {
   format?: 'png' | 'jpeg' | 'webp'
   background?: boolean
@@ -181,7 +188,12 @@ export interface EditorLike {
   createShape(input: CanvasShapeInput): void
   select(id: string): void
   setSelection(ids: string[]): void
-  setCurrentTool(tool: 'select' | 'draw'): void
+  setCurrentTool(tool: CanvasTool): void
+  getCurrentTool(): CanvasTool
+  beginRectangle(point: CanvasPoint): void
+  updateRectangle(point: CanvasPoint): void
+  finishRectangle(): void
+  createText(point: CanvasPoint): void
   getStoreSnapshot(): CanvasSnapshot
   loadStoreSnapshot(snapshot: CanvasSnapshot): Promise<void>
   toImage(ids: string[], options?: CanvasImageOptions): Promise<{ blob: Blob }>

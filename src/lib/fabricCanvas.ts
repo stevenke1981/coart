@@ -4,6 +4,7 @@ import {
   FabricImage,
   FabricText,
   Group,
+  IText,
   Line,
   Path,
   Point,
@@ -18,6 +19,8 @@ import type {
   CanvasShapeInput,
   CanvasSnapshot,
   CanvasViewportBounds,
+  CanvasPoint,
+  CanvasTool,
   EditorLike,
   CanvasImageOptions
 } from '../types'
@@ -157,6 +160,7 @@ function rectForRecord(record: AnyCanvasShape): Rect {
   const width = numberValue(record.props.w, 512)
   const height = numberValue(record.props.h, 512)
   const isFrame = record.type === 'frame'
+  const isRectangle = record.type === 'rectangle'
   return new Rect({
     left: numberValue(record.x, 0),
     top: numberValue(record.y, 0),
@@ -166,11 +170,11 @@ function rectForRecord(record: AnyCanvasShape): Rect {
     opacity: numberValue(record.opacity, 1),
     originX: 'left',
     originY: 'top',
-    rx: 12,
-    ry: 12,
-    fill: isFrame ? 'rgba(109,94,247,0.06)' : 'rgba(255,255,255,0.92)',
-    stroke: isFrame ? '#8b7fff' : '#c8c2ee',
-    strokeWidth: isFrame ? 2 : 1,
+    rx: isRectangle ? 0 : 12,
+    ry: isRectangle ? 0 : 12,
+    fill: isRectangle ? 'rgba(109,94,247,0.02)' : isFrame ? 'rgba(109,94,247,0.06)' : 'rgba(255,255,255,0.92)',
+    stroke: isRectangle ? stringValue(record.props.stroke, '#6d5ef7') : isFrame ? '#8b7fff' : '#c8c2ee',
+    strokeWidth: isRectangle ? numberValue(record.props.strokeWidth, 2) : isFrame ? 2 : 1,
     strokeDashArray: isFrame ? [8, 6] : undefined
   })
 }
@@ -191,8 +195,8 @@ function lineForRecord(record: AnyCanvasShape): Line {
   })
 }
 
-function textForRecord(record: AnyCanvasShape): FabricText {
-  return new FabricText(stringValue(record.props.text, stringValue(record.props.content, '文字')), {
+function textForRecord(record: AnyCanvasShape): IText {
+  return new IText(stringValue(record.props.text, stringValue(record.props.content, '文字')), {
     left: numberValue(record.x, 0),
     top: numberValue(record.y, 0),
     angle: numberValue(record.rotation, 0),
@@ -202,7 +206,9 @@ function textForRecord(record: AnyCanvasShape): FabricText {
     fontSize: numberValue(record.props.fontSize, 28),
     fontFamily: stringValue(record.props.fontFamily, 'Inter, Segoe UI, sans-serif'),
     fill: stringValue(record.props.fill, '#17161d'),
-    fontWeight: stringValue(record.props.fontWeight, '400')
+    fontWeight: stringValue(record.props.fontWeight, '400'),
+    editable: true,
+    padding: 4
   })
 }
 
@@ -238,6 +244,9 @@ export class CoartFabricEditor implements EditorLike {
   private records = new Map<string, CanvasRecord>()
   private schema: Record<string, unknown> = createEmptyCanvasSnapshot().schema
   private currentPageId = PAGE_ID
+  private currentTool: CanvasTool = 'select'
+  private draftRectangle: Rect | null = null
+  private draftRectangleStart: CanvasPoint | null = null
   private loading = false
 
   constructor(private readonly canvas: Canvas) {
@@ -248,6 +257,10 @@ export class CoartFabricEditor implements EditorLike {
   private registerCanvasEvents(): void {
     const onSelection = () => this.emitChange()
     const onModified = (event: { target?: FabricObject }) => {
+      if (event.target) this.syncRecordFromObject(event.target)
+      this.emitChange()
+    }
+    const onTextChanged = (event: { target?: FabricObject }) => {
       if (event.target) this.syncRecordFromObject(event.target)
       this.emitChange()
     }
@@ -290,6 +303,8 @@ export class CoartFabricEditor implements EditorLike {
     this.disposers.push(this.canvas.on('selection:updated', onSelection as never))
     this.disposers.push(this.canvas.on('selection:cleared', onSelection as never))
     this.disposers.push(this.canvas.on('object:modified', onModified as never))
+    this.disposers.push(this.canvas.on('text:changed', onTextChanged as never))
+    this.disposers.push(this.canvas.on('text:editing:exited', onTextChanged as never))
     this.disposers.push(this.canvas.on('object:removed', onRemoved as never))
     this.disposers.push(this.canvas.on('path:created', onPathCreated as never))
   }
@@ -309,6 +324,16 @@ export class CoartFabricEditor implements EditorLike {
     record.opacity = numberValue(object.opacity, record.opacity || 1)
     const size = objectSize(object)
     record.props = { ...record.props, w: size.w, h: size.h }
+
+    if (record.type === 'text') {
+      const textObject = object as IText
+      record.props = {
+        ...record.props,
+        text: stringValue(textObject.text, stringValue(record.props.text, '文字')),
+        w: size.w,
+        h: size.h
+      }
+    }
 
     if (record.type === 'image') {
       const assetId = stringValue(record.props.assetId)
@@ -379,6 +404,26 @@ export class CoartFabricEditor implements EditorLike {
   private async addRecord(record: AnyCanvasShape): Promise<void> {
     const object = this.attach(await this.objectForRecord(record), record)
     this.canvas.add(object)
+  }
+
+  private refreshObjectInteractivity(): void {
+    const selectable = this.currentTool === 'select'
+    this.canvas.selection = selectable
+    for (const object of this.canvas.getObjects()) {
+      const record = objectRecord(object)
+      object.set({
+        selectable: selectable && !record?.isLocked,
+        evented: selectable
+      })
+    }
+    if (!selectable) this.canvas.discardActiveObject()
+  }
+
+  private cancelDraftRectangle(): void {
+    if (!this.draftRectangle) return
+    this.canvas.remove(this.draftRectangle)
+    this.draftRectangle = null
+    this.draftRectangleStart = null
   }
 
   private ensureBaseRecords(): void {
@@ -495,12 +540,129 @@ export class CoartFabricEditor implements EditorLike {
     this.canvas.requestRenderAll()
   }
 
-  setCurrentTool(tool: 'select' | 'draw'): void {
+  setCurrentTool(tool: CanvasTool): void {
+    if (tool !== 'rectangle') this.cancelDraftRectangle()
+    this.currentTool = tool
     this.canvas.isDrawingMode = tool === 'draw'
-    this.canvas.selection = tool === 'select'
-    if (tool === 'draw') this.canvas.discardActiveObject()
-    this.canvas.defaultCursor = tool === 'draw' ? 'crosshair' : 'default'
+    this.refreshObjectInteractivity()
+    this.canvas.defaultCursor = tool === 'draw' || tool === 'rectangle'
+      ? 'crosshair'
+      : tool === 'text' ? 'text' : 'default'
     this.canvas.requestRenderAll()
+  }
+
+  getCurrentTool(): CanvasTool {
+    return this.currentTool
+  }
+
+  beginRectangle(point: CanvasPoint): void {
+    this.cancelDraftRectangle()
+    this.draftRectangleStart = { ...point }
+    this.draftRectangle = new Rect({
+      left: point.x,
+      top: point.y,
+      width: 1,
+      height: 1,
+      fill: 'rgba(109,94,247,0.02)',
+      stroke: '#6d5ef7',
+      strokeWidth: 2,
+      originX: 'left',
+      originY: 'top'
+    })
+    this.canvas.add(this.draftRectangle)
+  }
+
+  updateRectangle(point: CanvasPoint): void {
+    const rectangle = this.draftRectangle
+    const start = this.draftRectangleStart
+    if (!rectangle || !start) return
+    rectangle.set({
+      left: Math.min(start.x, point.x),
+      top: Math.min(start.y, point.y),
+      width: Math.max(1, Math.abs(point.x - start.x)),
+      height: Math.max(1, Math.abs(point.y - start.y))
+    })
+    rectangle.setCoords()
+    this.canvas.requestRenderAll()
+  }
+
+  finishRectangle(): void {
+    const rectangle = this.draftRectangle
+    this.draftRectangle = null
+    this.draftRectangleStart = null
+    if (!rectangle) return
+    const width = numberValue(rectangle.width, 0)
+    const height = numberValue(rectangle.height, 0)
+    if (width < 8 || height < 8) {
+      this.canvas.remove(rectangle)
+      this.canvas.requestRenderAll()
+      return
+    }
+    const record: AnyCanvasShape = {
+      id: createCoartShapeId(),
+      typeName: 'shape',
+      type: 'rectangle',
+      parentId: this.currentPageId,
+      index: nextIndex(this.records, this.currentPageId),
+      x: numberValue(rectangle.left, 0),
+      y: numberValue(rectangle.top, 0),
+      rotation: 0,
+      opacity: 1,
+      props: { w: width, h: height, stroke: '#6d5ef7', strokeWidth: 2, fill: 'rgba(109,94,247,0.02)' },
+      meta: { coartVersion: 1 }
+    }
+    this.records.set(record.id, record)
+    setObjectRecord(rectangle, record)
+    this.setCurrentTool('select')
+    this.canvas.setActiveObject(rectangle)
+    this.canvas.requestRenderAll()
+    this.emitChange()
+  }
+
+  createText(point: CanvasPoint): void {
+    const value = '輸入文字'
+    const text = new IText(value, {
+      left: point.x,
+      top: point.y,
+      fontSize: 28,
+      fontFamily: 'Inter, Segoe UI, sans-serif',
+      fill: '#17161d',
+      fontWeight: '400',
+      editable: true,
+      padding: 4,
+      originX: 'left',
+      originY: 'top'
+    })
+    const record: AnyCanvasShape = {
+      id: createCoartShapeId(),
+      typeName: 'shape',
+      type: 'text',
+      parentId: this.currentPageId,
+      index: nextIndex(this.records, this.currentPageId),
+      x: point.x,
+      y: point.y,
+      rotation: 0,
+      opacity: 1,
+      props: {
+        text: value,
+        w: objectSize(text).w,
+        h: objectSize(text).h,
+        fontSize: 28,
+        fontFamily: 'Inter, Segoe UI, sans-serif',
+        fill: '#17161d',
+        fontWeight: '400'
+      },
+      meta: { coartVersion: 1 }
+    }
+    this.records.set(record.id, record)
+    setObjectRecord(text, record)
+    this.canvas.add(text)
+    this.setCurrentTool('select')
+    this.canvas.setActiveObject(text)
+    text.enterEditing()
+    text.selectAll()
+    this.canvas.requestRenderAll()
+    this.emitChange()
   }
 
   getStoreSnapshot(): CanvasSnapshot {
@@ -514,6 +676,7 @@ export class CoartFabricEditor implements EditorLike {
   async loadStoreSnapshot(snapshot: CanvasSnapshot): Promise<void> {
     this.loading = true
     try {
+      this.cancelDraftRectangle()
       this.canvas.discardActiveObject()
       this.canvas.clear()
       this.schema = clone(snapshot.schema || createEmptyCanvasSnapshot().schema)
@@ -592,6 +755,7 @@ export class CoartFabricEditor implements EditorLike {
   }
 
   dispose(): void {
+    this.cancelDraftRectangle()
     for (const dispose of this.disposers) dispose()
     this.listeners.clear()
     void this.canvas.dispose()

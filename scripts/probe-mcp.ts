@@ -49,15 +49,26 @@ try {
     throw new Error('render_coart_canvas must default to inline mode for Codex Desktop stability.')
   }
 
+  const sidebarRendered: any = await client.callTool({
+    name: 'render_coart_canvas',
+    arguments: { projectDir: process.cwd(), displayMode: 'sidebar' }
+  })
+  if (sidebarRendered.structuredContent?.preferredDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas must preserve the requested sidebar display mode.')
+  }
+  if (sidebarRendered.structuredContent?.requestedDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas did not retain the requested sidebar display mode for diagnostics.')
+  }
+
   const fullscreenRendered: any = await client.callTool({
     name: 'render_coart_canvas',
     arguments: { projectDir: process.cwd(), displayMode: 'fullscreen' }
   })
   if (fullscreenRendered.structuredContent?.preferredDisplayMode !== 'inline') {
-    throw new Error('render_coart_canvas must coerce fullscreen to inline while the Codex Desktop host bug is active.')
+    throw new Error('render_coart_canvas must fall back to inline for legacy fullscreen requests.')
   }
   if (fullscreenRendered.structuredContent?.requestedDisplayMode !== 'fullscreen') {
-    throw new Error('render_coart_canvas did not retain the requested display mode for diagnostics.')
+    throw new Error('render_coart_canvas did not retain the legacy fullscreen request for diagnostics.')
   }
 
   const resources = await client.listResources()
@@ -76,7 +87,7 @@ try {
   const decodedHtml = decodeWidgetHtml(html)
   if (!decodedHtml.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!/app\.onteardown\s*=/.test(decodedHtml)) throw new Error('Widget bridge teardown handler was not registered.')
-  if (!decodedHtml.includes("availableDisplayModes: ['inline']")) throw new Error('Widget must advertise inline-only display support.')
+  if (!decodedHtml.includes("availableDisplayModes: ['inline', 'sidebar']")) throw new Error('Widget must advertise inline and sidebar display support.')
   if (!decodedHtml.includes('{ autoResize: true }') || decodedHtml.includes('notifyHostSize') || decodedHtml.includes('layoutPulseTimer = setInterval')) {
     throw new Error('Widget bridge must delegate intrinsic sizing to the Apps SDK without a fixed-size override or recurring layout pulse.')
   }

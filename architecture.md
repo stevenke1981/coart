@@ -25,8 +25,8 @@ MCP storage layer
 ## 前端模組
 
 - `App.tsx`：組合 Fabric.js、狀態載入、選取同步與面板。
-- `FabricCanvas.tsx`：建立 Fabric.js canvas、縮放／平移／手繪與瀏覽器生命週期。
-- `CanvasToolbar.tsx`：建立 AI image、AI HTML、Slides slot 與標註操作。
+- `FabricCanvas.tsx`：建立 Fabric.js canvas、縮放／平移／手繪、框線拖曳、文字編輯與瀏覽器生命週期。
+- `CanvasToolbar.tsx`：建立 AI image、AI HTML、Slides slot、框線／文字工具與標註操作。
 - `GenerationPanel.tsx`：prompt、參考圖、頁數與 follow-up message。
 - `SlidesViewer.tsx`：讀取 Slides frame 的子 HTML shape 並播放。
 - `SlidesViewer.tsx`：使用 `iframe srcDoc` 顯示單檔 HTML；畫布上的 HTML slot 以可編輯 Fabric 物件呈現。

@@ -26,7 +26,8 @@
 ### Canvas
 
 - 使用 Fabric.js；inline Widget 與外部 editor 共用同一個 canvas facade。
-- 支援 pan、zoom、draw、arrow、text、image 與 frame。
+- 支援 pan、zoom、draw、arrow、text、image、frame 與可拖曳建立的 rectangle 框線。
+- 文字物件使用 Fabric IText；新增後立即進入編輯，既有文字可直接雙擊修改，內容與位置會自動保存。
 - 自動保存，debounce 700ms。
 - 保存目前頁面與 camera。
 

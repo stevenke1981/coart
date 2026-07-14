@@ -6,10 +6,11 @@ Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布
 
 ## 已實作
 
-- Codex 原生 MCP Widget（inline fallback）與獨立 Coart 編輯器視窗。
+- Codex 原生 MCP Widget（inline／sidebar fallback）與獨立 Coart 編輯器視窗。
 - `open_coart_editor` 以受 token 保護的 loopback HTTP bridge 開啟外部編輯器，狀態與圖片固定保存到目前專案的 `canvas/`。
 - `get_coart_latest_image` 與 `read_coart_asset` 以 MCP image content 將專案圖片讀回同一個 Codex 對話。
-- Fabric.js 無限畫布與本機開發模式；inline 與外部編輯器共用同一個渲染核心。
+- Fabric.js 無限畫布與本機開發模式；inline、sidebar 與外部編輯器共用同一個渲染核心。
+- 畫布工具支援拖曳建立框線，以及點擊新增可直接雙擊／輸入編輯的文字物件。
 - v2 manifest、per-page snapshot、相容回復副本、選取／視角與資產持久化。
 - v1 snapshot 自動相容，下一次保存遷移到 v2。
 - 資產 checksum、引用與保護標記。
@@ -40,7 +41,7 @@ Open the Coart canvas for this project.
 
 開啟畫布的預設流程是呼叫 `open_coart_editor`，由 Chrome／Edge 以獨立 app 視窗開啟 Coart；它只監聽 `127.0.0.1`，並以一次性 token 保護該專案的 API。編輯器與 Codex 對話仍使用同一個專案目錄，所有 snapshot 與圖片都寫入 `<projectDir>/canvas/`。完成編輯後回到原對話，要求「讀取最新圖片」即可由 `get_coart_latest_image` 將實際圖片內容回傳給 Codex；原始圖片不會被自動刪除。
 
-獨立視窗沒有 Codex host 的 follow-up bridge，因此畫布內產生的提示詞會先複製到剪貼簿，貼回同一個 Codex 對話即可繼續工作。`render_coart_canvas` 仍保留作 MCP Apps inline Widget fallback；若宿主只顯示工具 JSON，不需要依賴它才能使用外部編輯器。
+獨立視窗沒有 Codex host 的 follow-up bridge，因此畫布內產生的提示詞會先複製到剪貼簿，貼回同一個 Codex 對話即可繼續工作。`render_coart_canvas` 支援 MCP Apps 的 `inline` 與 `sidebar` Widget 顯示；若宿主只顯示工具 JSON，不需要依賴它才能使用外部編輯器。
 
 若只想快速安裝並已自行跑過驗證，可在上方命令末尾加上 `-SkipQuality`。這只對該次 PowerShell 程序略過簽章政策，不會修改系統全域設定。
 
@@ -70,7 +71,7 @@ Node.js 22.6+ 以 type stripping 直接執行 MCP entrypoint、tests 與 probe s
 
 ## Widget HTML 大小與自包含載入
 
-ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 現在直接傳送自包含 inline HTML；`npm run probe:mcp` 會檢查資源大小與 bridge 內容，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/Fabric.js 已掛載。外部編輯器沿用同一份自包含 HTML，但由受 token 保護的本機 loopback server 提供，不需要 MCP Apps inline renderer。
+ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 現在直接傳送自包含 HTML；`npm run probe:mcp` 會檢查 inline/sidebar 顯示模式、資源大小與 bridge 內容，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/Fabric.js 已掛載。外部編輯器沿用同一份自包含 HTML，但由受 token 保護的本機 loopback server 提供，不需要 MCP Apps renderer。
 
 MCP Apps 的[官方規格](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)要求 Widget resource 是有效 HTML5；[Apps SDK 文件](https://developers.openai.com/apps-sdk/build/mcp-server/)說明 CSP metadata 與 resource registration，但沒有公布固定 HTML byte 上限，實際 host 仍應在登入後的 Developer Mode 進行驗收。
 

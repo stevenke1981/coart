@@ -14,7 +14,7 @@ Coart v0.2.7 is TypeScript-first:
 - Node.js 22.6+ executes `scripts/start-mcp.ts` directly with type stripping.
 - The stdio entrypoint imports `mcp/server.ts`; do not refer to removed `.mjs` entrypoints.
 - The default editor is a standalone Chrome／Edge app window served from a token-protected loopback bridge. It is bound to the requested project and writes only to `<projectDir>/canvas/`.
-- `render_coart_canvas` remains an MCP Apps inline Widget fallback. It is not required for the external editor workflow.
+- `render_coart_canvas` remains an MCP Apps Widget fallback and supports `inline` or `sidebar`. It is not required for the external editor workflow.
 
 ## Default open procedure
 
@@ -33,7 +33,7 @@ Coart v0.2.7 is TypeScript-first:
 
 ## Inline fallback
 
-Use `render_coart_canvas` only when the user explicitly requests inline display or when external window launch is unavailable:
+Use `render_coart_canvas` when the user explicitly requests inline/sidebar display or when external window launch is unavailable:
 
 ```json
 {
@@ -42,7 +42,7 @@ Use `render_coart_canvas` only when the user explicitly requests inline display 
 }
 ```
 
-For inline fallback, check `codex features list` first. Both `apps ... true` and `enable_mcp_apps ... true` are required. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. The expected v0.2.7 resource URI is `ui://widget/coart/canvas-v0-2-7.html`.
+Use `"sidebar"` instead of `"inline"` when the host should place the same Fabric canvas in the side panel. For either mode, check `codex features list` first. Both `apps ... true` and `enable_mcp_apps ... true` are required. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. The expected v0.2.7 resource URI is `ui://widget/coart/canvas-v0-2-7.html`.
 
 ## Recovery
 

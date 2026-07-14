@@ -2,6 +2,13 @@
 
 本交付在獨立 clean-room `coart` 專案上完成 v0.2 儲存與安裝可靠性升級，不依賴 Cowart 原始碼或品牌資產。
 
+## 2026-07-15 sidebar 與 Fabric 畫布直接編輯
+
+- `render_coart_canvas` 現在保留 `inline` 穩定預設，並正式支援 `sidebar`；Widget bridge 宣告 `availableDisplayModes: ['inline', 'sidebar']`，舊 `fullscreen` 請求仍回退到 inline 以維持相容性。
+- Fabric 畫布新增「框線」工具，可直接拖曳建立可選取、可移動與可調整大小的矩形框線。
+- Fabric 畫布新增「文字」工具，點擊後立即建立可編輯的 IText；新增文字會自動選取全部內容，既有文字可直接雙擊編輯，文字內容會隨 autosave 保存。
+- `scripts/probe-mcp.ts` 已加入 sidebar／fullscreen fallback 回歸檢查；Chromium widget smoke 仍驗證實際 Fabric canvas 掛載。
+
 ## 2026-07-15 Fabric.js 畫布遷移
 
 - 因 tldraw SDK 的 production license gate 會在 inline 與 standalone bundle 顯示授權提示，前端已全面改用 Fabric.js；`package.json` 與 lockfile 已移除 `tldraw`／`@tldraw/assets`。

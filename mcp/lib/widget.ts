@@ -142,7 +142,11 @@ function bridgeScript() {
           await ready;
           return app.sendMessage({ role: 'user', content: [{ type: 'text', text: String(message?.prompt || message || '') }] });
         },
-        requestDisplayMode: async () => { await ready; return app.requestDisplayMode({ mode: 'inline' }); },
+        requestDisplayMode: async (request = {}) => {
+          await ready;
+          const mode = request?.mode === 'sidebar' ? 'sidebar' : 'inline';
+          return app.requestDisplayMode({ mode });
+        },
         getHostCapabilities: () => app.getHostCapabilities?.()
       };
     };
@@ -151,13 +155,14 @@ function bridgeScript() {
       const payload = metadata.widgetData || result?.structuredContent || result || {};
       publish({ rawToolResult: result, toolOutput: payload, toolResponseMetadata: metadata });
       if (payload.preferredDisplayMode && app?.requestDisplayMode) {
-        app.requestDisplayMode({ mode: payload.preferredDisplayMode }).catch(() => {});
+        const mode = payload.preferredDisplayMode === 'sidebar' ? 'sidebar' : 'inline';
+        app.requestDisplayMode({ mode }).catch(() => {});
       }
     };
     // Let the Apps SDK measure the final document after Codex has attached its
     // detached widget surface. A one-shot, fixed height can become stale when
     // the conversation view is restored or its width changes.
-    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline'] }, { autoResize: true });
+    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline', 'sidebar'] }, { autoResize: true });
     // MCP Apps hosts send ui/resource-teardown before unmounting a view, for
     // example when the user switches conversations. Register the handler
     // before connect() so the SDK can answer the lifecycle request cleanly.

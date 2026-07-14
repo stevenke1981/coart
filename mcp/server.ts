@@ -57,7 +57,7 @@ server.registerTool('open_coart_editor', {
 registerAppTool(server, 'render_coart_canvas', {
   title: 'Render Coart Canvas',
   description: 'Use this when the user wants to open or return to the Coart infinite canvas for the active project.',
-  inputSchema: { ...targetSchema, title: z.string().trim().optional(), displayMode: z.enum(['inline', 'fullscreen']).optional() },
+  inputSchema: { ...targetSchema, title: z.string().trim().optional(), displayMode: z.enum(['inline', 'sidebar', 'fullscreen']).optional() },
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   _meta: {
     ui: { resourceUri: WIDGET_URI, visibility: ['model', 'app'] },
@@ -74,10 +74,10 @@ registerAppTool(server, 'render_coart_canvas', {
     widget: 'coart-canvas-widget',
     title: input.title || 'Coart Canvas',
     rendering: 'native-widget',
-    // Codex Desktop currently reuses MCP App state by resource URI. A stale
-    // fullscreen side-panel registration can therefore hijack later inline
-    // renders. This release deliberately stays inline-only.
-    preferredDisplayMode: 'inline',
+    // Keep fullscreen accepted for backwards compatibility, but only request
+    // host modes that this Fabric widget advertises. Sidebar is now a first-
+    // class host layout alongside the stable inline fallback.
+    preferredDisplayMode: input.displayMode === 'sidebar' ? 'sidebar' : 'inline',
     requestedDisplayMode: input.displayMode || 'inline',
     projectDir: paths.projectDir,
     canvasDir: paths.canvasDir,

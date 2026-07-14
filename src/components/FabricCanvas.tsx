@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Canvas } from 'fabric'
 import { CoartFabricEditor } from '../lib/fabricCanvas'
-import type { EditorLike } from '../types'
+import type { CanvasPoint, EditorLike } from '../types'
 
 interface FabricCanvasProps {
   onReady: (editor: EditorLike | null) => void
@@ -26,6 +26,12 @@ export function FabricCanvas({ onReady }: FabricCanvasProps) {
     const editor = new CoartFabricEditor(fabricCanvas)
     let isPanning = false
     let lastPointer: { x: number; y: number } | null = null
+    let isDrawingRectangle = false
+
+    const pointerPoint = (event: MouseEvent): CanvasPoint => {
+      const point = fabricCanvas.getScenePoint(event as never)
+      return { x: point.x, y: point.y }
+    }
 
     const resize = () => {
       const rect = shell.getBoundingClientRect()
@@ -48,14 +54,31 @@ export function FabricCanvas({ onReady }: FabricCanvasProps) {
         lastPointer = { x: event.e.clientX, y: event.e.clientY }
         fabricCanvas.selection = false
         fabricCanvas.defaultCursor = 'grabbing'
+        return
+      }
+      if (event.e.button !== 0) return
+      const point = pointerPoint(event.e)
+      if (editor.getCurrentTool() === 'rectangle') {
+        isDrawingRectangle = true
+        editor.beginRectangle(point)
+      } else if (editor.getCurrentTool() === 'text') {
+        editor.createText(point)
       }
     }
     const onMouseMove = (event: { e: MouseEvent }) => {
-      if (!isPanning || !lastPointer) return
-      editor.panBy(event.e.clientX - lastPointer.x, event.e.clientY - lastPointer.y)
-      lastPointer = { x: event.e.clientX, y: event.e.clientY }
+      if (isPanning && lastPointer) {
+        editor.panBy(event.e.clientX - lastPointer.x, event.e.clientY - lastPointer.y)
+        lastPointer = { x: event.e.clientX, y: event.e.clientY }
+        return
+      }
+      if (isDrawingRectangle) editor.updateRectangle(pointerPoint(event.e))
     }
-    const stopPanning = () => {
+    const stopInteraction = (event: { e: MouseEvent }) => {
+      if (isDrawingRectangle) {
+        editor.updateRectangle(pointerPoint(event.e))
+        editor.finishRectangle()
+        isDrawingRectangle = false
+      }
       if (!isPanning) return
       isPanning = false
       lastPointer = null
@@ -66,7 +89,7 @@ export function FabricCanvas({ onReady }: FabricCanvasProps) {
     fabricCanvas.on('mouse:wheel', onWheel as never)
     fabricCanvas.on('mouse:down', onMouseDown as never)
     fabricCanvas.on('mouse:move', onMouseMove as never)
-    fabricCanvas.on('mouse:up', stopPanning as never)
+    fabricCanvas.on('mouse:up', stopInteraction as never)
     window.addEventListener('resize', resize)
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize)
     observer?.observe(shell)
