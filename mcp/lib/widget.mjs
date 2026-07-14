@@ -154,6 +154,11 @@ function bridgeScript() {
 function compressedWidgetHtml(source) {
   const payload = gzipSync(Buffer.from(source, 'utf8'), { level: 9 }).toString('base64')
   const encodedPayload = JSON.stringify(payload)
+  // document.write() does NOT execute <script type="module"> per the HTML spec.
+  // The React/tldraw app is bundled as a module script and would silently fail.
+  // Instead, decompress the HTML, parse it with DOMParser, then rebuild the
+  // live document by importing nodes and re-creating script elements so both
+  // classic and module scripts execute correctly.
   return `<!doctype html>
 <html lang="zh-Hant">
   <head>
@@ -167,9 +172,35 @@ function compressedWidgetHtml(source) {
         const compressed = Uint8Array.from(encoded, (character) => character.charCodeAt(0));
         const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
         const html = await new Response(stream).text();
-        document.open();
-        document.write(html);
-        document.close();
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        // Replace <head> contents (styles, meta, non-script elements)
+        while (document.head.firstChild) document.head.removeChild(document.head.firstChild);
+        for (const node of Array.from(parsed.head.childNodes)) {
+          if (node.nodeName === 'SCRIPT') continue;
+          document.head.appendChild(document.importNode(node, true));
+        }
+        // Replace <body> contents (the #root div, etc.)
+        while (document.body.firstChild) document.body.removeChild(document.body.firstChild);
+        for (const node of Array.from(parsed.body.childNodes)) {
+          if (node.nodeName === 'SCRIPT') continue;
+          document.body.appendChild(document.importNode(node, true));
+        }
+        // Copy <html> attributes (lang, etc.)
+        for (const attr of Array.from(parsed.documentElement.attributes)) {
+          document.documentElement.setAttribute(attr.name, attr.value);
+        }
+        // Re-create script elements so the browser executes them.
+        // DOMParser-parsed scripts are inert; we must create fresh elements.
+        const allScripts = [
+          ...Array.from(parsed.head.querySelectorAll('script')).map((s) => ({ script: s, target: document.head })),
+          ...Array.from(parsed.body.querySelectorAll('script')).map((s) => ({ script: s, target: document.body }))
+        ];
+        for (const { script: src, target } of allScripts) {
+          const el = document.createElement('script');
+          for (const attr of Array.from(src.attributes)) el.setAttribute(attr.name, attr.value);
+          if (src.textContent) el.textContent = src.textContent;
+          target.appendChild(el);
+        }
       })().catch((error) => {
         document.body.textContent = 'Coart widget failed to load.';
         console.error(error);

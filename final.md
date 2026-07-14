@@ -28,7 +28,13 @@
 ## 2026-07-14 MCP Apps lifecycle hotfix
 
 - 在 `app.connect()` 前註冊 `app.onteardown`，讓 Codex 切換對話送出的 `ui/resource-teardown` 得到合法回應，避免 Widget 被宿主留在白色空頁。
-- `scripts/probe-mcp.mjs` 會檢查生成的 Widget bridge 包含 teardown handler。
+- `scripts/probe-widget-loader.mjs` 會檢查生成的 Widget bridge 包含 teardown handler。
+
+## 2026-07-14 Widget Loader module script 白屏修正
+
+- 修正 Widget 壓縮載入器使用 `document.write()` 時，因瀏覽器規格限制不執行 `<script type="module">`，導致 React/tldraw 主程式無法執行、畫面短暫顯示後即變白屏的問題。
+- 改用 `DOMParser` 解析解壓後的 HTML，逐一將 `<head>`、`<body>` 的靜態節點與屬性導入 live document，並對所有 `<script>`（包含 `type="module"` 腳本）透過 `document.createElement` 重新建立與插入以觸發瀏覽器載入與執行。
+- 透過 `npm run probe:widget` 在 Headless Chrome 進行端到端加載測試，確認 React 與 tldraw canvas 完全 Mount 成功，無白屏問題。
 
 ## 已知限制
 
