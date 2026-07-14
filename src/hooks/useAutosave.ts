@@ -3,11 +3,15 @@ import { SAVE_DEBOUNCE_MS } from '../constants'
 import { saveCanvasState, saveSelection, saveViewState } from '../lib/coartClient'
 import type { AnyCanvasShape, EditorLike, SelectionState, ViewState } from '../types'
 
-export function useAutosave(editor: EditorLike | null, onStatus?: (message: string) => void): void {
+export function useAutosave(
+  editor: EditorLike | null,
+  onStatus?: (message: string) => void,
+  enabled = true
+): void {
   const timerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    if (!editor) return undefined
+    if (!editor || !enabled) return undefined
 
     const persist = () => {
       window.clearTimeout(timerRef.current)
@@ -50,5 +54,5 @@ export function useAutosave(editor: EditorLike | null, onStatus?: (message: stri
       window.clearTimeout(timerRef.current)
       unlisten?.()
     }
-  }, [editor, onStatus])
+  }, [editor, enabled, onStatus])
 }

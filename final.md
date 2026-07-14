@@ -19,6 +19,12 @@
 - 以公開 Cowart 功能說明作 clean-room 對照，保留 Coart 自有名稱、schema、UI 文案與資產；差異化缺口已寫入 `todos.md`，未複製參考專案程式碼。
 - 分析、架構、規格、計畫、TODO、測試、Agent 團隊、追蹤矩陣與啟動提示詞。
 
+## 2026-07-14 畫布載入 hotfix
+
+- 修正 Widget 在既有 snapshot 非同步 hydrate 完成前掛載 autosave 的競速。
+- autosave 現在只會在 hydration 完成（或載入失敗已明確處理）後啟用，避免初始空白 store 覆蓋已保存的 image shape。
+- 已恢復八駿圖分鏡素材至 `canvas/assets/eight-steeds-storyboard-16x9-fixed.png`，並確認 hydrated snapshot 會把圖片轉為 data URL。
+
 ## 已知限制
 
 - page asset lazy loading 尚未完成；目前讀取時會組合完整 snapshot。
@@ -30,6 +36,7 @@
 - Headless Chromium smoke 已確認 loader 解壓後實際掛載 `.coart-app`、tldraw container；尚未完成登入後的 ChatGPT Developer Mode host-level 驗收與像素級截圖。
 - `codex review --uncommitted` 對 53-file 初始 repo 的全量 review 在 184 秒逾時，未產生可用報告；改採針對 storage/manifest 提交協定的人工審查，並修正內容世代原子性與損壞 fallback 依賴問題。
 - TypeScript 目前採前端完整遷移、MCP `.mjs` 保留的邊界：前端可由 `tsc --noEmit` 嚴格檢查；MCP 入口仍由 Node 直接執行，避免 plugin entrypoint 引入額外 runtime。
+- 目前已開啟的舊 Widget 實例仍可能持有舊版 bundle；重啟 Coart MCP bridge 後需重新開啟畫布才能套用 hydration hotfix。
 
 ## 已完成驗證
 
@@ -41,6 +48,7 @@
 - `npm run probe:mcp`：驗證 envelope、外層 head 注入位置、壓縮 Widget 2,806,326 bytes，decoded 4,307,181 bytes。
 - `npm run probe:http`：Streamable HTTP `/mcp` 與 11 個 tools 通過。
 - `npm run probe:widget`：Chrome headless 實際掛載 React/tldraw，`mounted: true`。
+- hydration hotfix：直接讀取 `readCanvasState(..., { hydrateAssets: true })` 確認 image asset 會回傳 data URL，且 snapshot 保留 image shape。
 - Codex 安裝快取：`coart@coart-public` v0.2.4 安裝後，需從快取重新執行 stdio/HTTP/widget probes。
 
 ## 建議第一個 Codex 實機驗證

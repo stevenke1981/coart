@@ -23,6 +23,7 @@ const shapeUtils = [CoartHtmlShapeUtil]
 
 export default function App() {
   const [editor, setEditor] = useState<EditorLike | null>(null)
+  const [canvasReady, setCanvasReady] = useState(false)
   const [selectedShape, setSelectedShape] = useState<AnyCanvasShape | null>(null)
   const [aspectId, setAspectId] = useState('3:4')
   const [status, setStatus] = useState('')
@@ -35,9 +36,10 @@ export default function App() {
     statusTimerRef.current = window.setTimeout(() => setStatus(''), 2600)
   }, [])
 
-  useAutosave(editor, showStatus)
+  useAutosave(editor, showStatus, canvasReady)
 
   const handleMount = useCallback((nextEditor: EditorLike): void => {
+    setCanvasReady(false)
     setEditor(nextEditor)
     void (async () => {
       try {
@@ -53,6 +55,8 @@ export default function App() {
       } catch (error: unknown) {
         console.error(error)
         showStatus(`載入失敗：${error instanceof Error ? error.message : String(error)}`)
+      } finally {
+        setCanvasReady(true)
       }
 
       const updateSelection = () => {
