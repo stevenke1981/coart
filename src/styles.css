@@ -12,13 +12,15 @@
  * small intrinsic floor while letting the SDK autoResize report later changes.
  */
 html, body { width: 100%; min-height: 640px; margin: 0; overflow: hidden; }
-#root { width: 100%; min-height: 640px; margin: 0; overflow: hidden; }
+#root { width: 100%; min-height: 640px; height: 100%; margin: 0; overflow: hidden; }
 button, textarea, input, select { font: inherit; }
 button { cursor: pointer; }
 
-.coart-app { width: 100%; min-height: 640px; position: relative; }
-/* tldraw's own container uses height: 100%; make that percentage definite. */
-.coart-app > .tl-container { min-height: 640px; }
+.coart-app { width: 100%; min-height: 640px; height: max(640px, 100vh); position: relative; overflow: hidden; }
+.coart-fabric-shell { width: 100%; height: 100%; min-height: 640px; position: relative; overflow: hidden; }
+.coart-fabric-shell .canvas-container { width: 100% !important; height: 100% !important; min-height: 640px; }
+.coart-fabric-shell canvas { display: block; }
+.coart-fabric-shell .upper-canvas { touch-action: none; }
 
 .coart-toolbar {
   position: absolute;

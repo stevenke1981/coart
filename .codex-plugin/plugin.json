@@ -15,7 +15,7 @@
     "displayName": "Coart",
     "developerName": "Coart contributors",
     "shortDescription": "Think, generate, annotate, and present on an infinite canvas.",
-    "longDescription": "Coart combines a tldraw-powered native Codex widget with project-local storage and MCP tools for AI image slots, HTML drafts, slide decks, references, exports, and annotation-driven revisions.",
+    "longDescription": "Coart combines a Fabric.js-powered native Codex widget with project-local storage and MCP tools for AI image slots, HTML drafts, slide decks, references, exports, and annotation-driven revisions.",
     "category": "Productivity",
     "brandColor": "#6D5EF7",
     "capabilities": [

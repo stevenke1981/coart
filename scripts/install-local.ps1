@@ -12,7 +12,7 @@ if ($featureOutput -notmatch '(?m)^\s*enable_mcp_apps\s+.*\s+true\s*$') {
 }
 Push-Location $Source
 try {
-  npm install --registry=https://registry.npmjs.org
+  npm install --ignore-scripts --fetch-retries=0 --fetch-timeout=30000 --registry=https://registry.npmjs.org
   if (-not $SkipQuality) { npm run quality }
 
   $marketplaces = (codex plugin marketplace list --json | ConvertFrom-Json).marketplaces

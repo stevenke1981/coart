@@ -41,6 +41,7 @@ function widgetSourceStamp() {
 export const WIDGET_BUILD_DIR = join(tmpdir(), `coart-widget-${manifest.version}-${widgetSourceStamp()}`)
 export const WIDGET_HTML_GUARD_BYTES = 4 * 1024 * 1024
 let cachedHtml: string | null = null
+let cachedStandaloneHtml: string | null = null
 let cachedAppsBundle: string | null = null
 
 function run(command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv; label?: string } = {}): Promise<void> {
@@ -187,7 +188,7 @@ export async function widgetHtml() {
   if (cachedHtml) return cachedHtml
   const base = await inlineBuild()
   const injected = `<script>${appsBundle().replaceAll('</script', '<\\/script')}</script><script>${bridgeScript().replaceAll('</script', '<\\/script')}</script>`
-  // The tldraw bundle contains HTML strings of its own, including `</head>`.
+  // The Fabric.js bundle may contain HTML strings of its own, including `</head>`.
   // Inject into the outer document's final closing head tag, never the first
   // embedded template occurrence.
   const headClose = base.lastIndexOf('</head>')
@@ -205,6 +206,12 @@ export async function widgetHtml() {
   return cachedHtml
 }
 
+export async function standaloneWidgetHtml() {
+  if (cachedStandaloneHtml) return cachedStandaloneHtml
+  cachedStandaloneHtml = await inlineBuild()
+  return cachedStandaloneHtml
+}
+
 export function registerCoartWidgetResource(server: any) {
   const metadata = {
     ui: { prefersBorder: false, csp: { connectDomains: [], resourceDomains: ['data:', 'blob:'], frameDomains: ['data:', 'blob:'] } },
@@ -215,7 +222,7 @@ export function registerCoartWidgetResource(server: any) {
   for (const [index, uri] of [WIDGET_URI, ...LEGACY_WIDGET_URIS].entries()) {
     registerAppResource(server, index === 0 ? `coart-canvas-widget-${manifest.version}` : `coart-canvas-widget-legacy-${index}`, uri, {
       title: 'Coart Canvas',
-      description: 'A tldraw-powered native Codex canvas with project-local persistence.',
+      description: 'A Fabric.js-powered native Codex canvas with project-local persistence.',
       _meta: metadata
     }, async () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: await widgetHtml(), _meta: metadata }] }))
   }

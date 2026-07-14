@@ -17,7 +17,7 @@ export function useAutosave(
       window.clearTimeout(timerRef.current)
       timerRef.current = window.setTimeout(async () => {
         try {
-          const snapshot = editor.store.getStoreSnapshot('document')
+          const snapshot = editor.getStoreSnapshot()
           const selectedIds = editor.getSelectedShapeIds()
           const selection: SelectionState = {
             version: 1,
@@ -48,7 +48,7 @@ export function useAutosave(
       }, SAVE_DEBOUNCE_MS)
     }
 
-    const unlisten = editor.store.listen(persist, { scope: 'all' })
+    const unlisten = editor.onChange(persist)
 
     return () => {
       window.clearTimeout(timerRef.current)

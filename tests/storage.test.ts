@@ -6,6 +6,7 @@ import { mkdtemp } from 'node:fs/promises'
 import test from 'node:test'
 import {
   readCanvasState,
+  readLatestImageAsset,
   resolveCoartPaths,
   saveCanvasSnapshot
 } from '../mcp/lib/storage.ts'
@@ -151,4 +152,15 @@ test('snapshot generations and changed image assets are immutable', async () => 
   assert.equal(secondManifest.assets.length, 2)
   assert.equal(await readFile(join(paths.canvasDir, firstManifest.sharedFile), 'utf8').then(Boolean), true)
   assert.equal(await readFile(join(paths.pagesDir, firstManifest.pages[0].file), 'utf8').then(Boolean), true)
+})
+
+test('readLatestImageAsset returns the newest project-local image with visual data', async () => {
+  const projectDir = await mkdtemp(join(tmpdir(), 'coart-latest-image-'))
+  await saveCanvasSnapshot({ projectDir }, snapshot())
+
+  const latest = await readLatestImageAsset({ projectDir })
+  assert.equal(latest.mimeType, 'image/png')
+  assert.equal(latest.assetUrl, '/assets/pixel.png')
+  assert.equal(latest.dataBase64, 'iVBORw0KGgo=')
+  assert.match(latest.updatedAt, /^\d{4}-\d{2}-\d{2}T/)
 })

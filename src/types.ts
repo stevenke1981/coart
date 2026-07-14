@@ -1,5 +1,3 @@
-import type { Editor, TLShape, TLStoreSnapshot, TLCamera } from 'tldraw'
-
 export type CoartKind = 'ai-image' | 'ai-html' | 'slides'
 
 export interface CoartShapeMeta {
@@ -14,8 +12,24 @@ export interface BoxProps {
   [key: string]: unknown
 }
 
-export type AnyCanvasShape = TLShape & {
+export interface CanvasRecord {
+  id: string
+  typeName: 'document' | 'page' | 'shape' | 'asset' | 'binding' | string
+  type?: string
+  parentId?: string
+  index?: string
+  x?: number
+  y?: number
+  rotation?: number
+  opacity?: number
+  isLocked?: boolean
+  props: Record<string, unknown> & BoxProps
   meta: CoartShapeMeta
+  [key: string]: unknown
+}
+
+export type AnyCanvasShape = CanvasRecord & {
+  typeName: 'shape'
   props: BoxProps
 }
 
@@ -27,9 +41,21 @@ export type CoartHtmlShapeProps = {
   assetUrl: string
 }
 
-export type CoartHtmlShape = TLShape & {
+export type CoartHtmlShape = AnyCanvasShape & {
   type: 'coart-html'
   props: CoartHtmlShapeProps
+}
+
+export interface CanvasSnapshot {
+  schema: Record<string, unknown>
+  store: Record<string, CanvasRecord>
+  [key: string]: unknown
+}
+
+export interface CanvasCamera {
+  x: number
+  y: number
+  z: number
 }
 
 export interface AspectPreset {
@@ -39,7 +65,8 @@ export interface AspectPreset {
 }
 
 export interface CanvasState {
-  snapshot?: TLStoreSnapshot
+  snapshot?: CanvasSnapshot | null
+  selection?: SelectionState | null
   viewState?: ViewState | null
   storage?: string
   [key: string]: unknown
@@ -56,7 +83,7 @@ export interface SelectionState {
 export interface ViewState {
   version: number
   currentPageId: string
-  camera: TLCamera
+  camera: CanvasCamera
   updatedAt: string
 }
 
@@ -113,7 +140,53 @@ export interface OpenAiBridge {
   toolOutput?: CoartToolOutput
 }
 
-export type EditorLike = Editor
+export interface CanvasViewportBounds {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export interface CanvasImageOptions {
+  format?: 'png' | 'jpeg' | 'webp'
+  background?: boolean
+  padding?: number
+  scale?: number
+}
+
+export interface CanvasShapeInput {
+  id: string
+  type?: string
+  parentId?: string
+  index?: string
+  x?: number
+  y?: number
+  rotation?: number
+  opacity?: number
+  isLocked?: boolean
+  props?: BoxProps
+  meta?: CoartShapeMeta
+}
+
+export interface EditorLike {
+  getViewportPageBounds(): CanvasViewportBounds
+  getCurrentPageId(): string
+  setCurrentPage(pageId: string): void
+  has(id: string): boolean
+  getCamera(): CanvasCamera
+  setCamera(camera: CanvasCamera): void
+  getSelectedShapeIds(): string[]
+  getShape(id: string): AnyCanvasShape | undefined
+  getCurrentPageShapes(): AnyCanvasShape[]
+  createShape(input: CanvasShapeInput): void
+  select(id: string): void
+  setSelection(ids: string[]): void
+  setCurrentTool(tool: 'select' | 'draw'): void
+  getStoreSnapshot(): CanvasSnapshot
+  loadStoreSnapshot(snapshot: CanvasSnapshot): Promise<void>
+  toImage(ids: string[], options?: CanvasImageOptions): Promise<{ blob: Blob }>
+  onChange(listener: () => void): () => void
+}
 
 export interface PromptShape {
   id: string

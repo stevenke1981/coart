@@ -1,6 +1,6 @@
 import { FileCode2, ImagePlus, MonitorPlay, MousePointer2, PencilLine, Presentation, Save } from 'lucide-react'
-import { createShapeId } from 'tldraw'
 import { ASPECT_PRESETS, COART_KINDS, DEFAULT_HTML_SIZE, DEFAULT_SLIDES_SIZE } from '../constants'
+import { createCoartShapeId } from '../lib/fabricCanvas'
 import type { CoartKind, EditorLike } from '../types'
 
 interface FrameOptions {
@@ -17,7 +17,7 @@ function viewportPoint(editor: EditorLike): { x: number; y: number } {
 
 function createFrame(editor: EditorLike, { kind, width, height, name }: FrameOptions): void {
   const center = viewportPoint(editor)
-  const id = createShapeId()
+  const id = createCoartShapeId()
   editor.createShape({
     id,
     type: 'frame',
@@ -26,7 +26,7 @@ function createFrame(editor: EditorLike, { kind, width, height, name }: FrameOpt
     props: { w: width, h: height, name },
     meta: { coartKind: kind, coartVersion: 1 }
   })
-  editor.select(id)
+  window.setTimeout(() => editor.select(id), 0)
 }
 
 interface CanvasToolbarProps {

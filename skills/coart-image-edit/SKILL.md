@@ -5,7 +5,7 @@ description: Use a Coart annotation screenshot to create a clean revised image b
 
 # Coart Annotation Edit
 
-1. Read the annotation screenshot path from the user's prompt. It should be inside the active project's `canvas/assets/` directory.
+1. If the user refers to an image just edited in the standalone Coart window, call `get_coart_latest_image` first so the model receives the actual project-local image content. Otherwise read the annotation screenshot path from the user's prompt; it should be inside the active project's `canvas/assets/` directory.
 2. Treat arrows, circles, freehand marks, and nearby text as revision instructions.
 3. Generate a clean bitmap without annotation marks, blue selection boxes, toolbars, or editor chrome.
 4. Preserve the requested subject, composition, and aspect ratio unless the annotations explicitly change them.

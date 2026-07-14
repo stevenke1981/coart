@@ -68,8 +68,10 @@ export function GenerationPanel({ editor, selectedShape, onStatus }: GenerationP
         : mode === 'html'
           ? htmlPrompt(args)
           : slidesPrompt(args)
-      await sendFollowUpMessage(message)
-      onStatus?.('已將生成任務送交 Codex')
+      const delivery = await sendFollowUpMessage(message)
+      onStatus?.((delivery as { copiedToClipboard?: boolean })?.copiedToClipboard
+        ? '提示詞已複製，請貼回同一 Codex 對話'
+        : '已將生成任務送交 Codex')
       setPrompt('')
       setFiles([])
     } catch (error: unknown) {

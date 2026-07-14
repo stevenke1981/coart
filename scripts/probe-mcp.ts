@@ -3,6 +3,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { decodeWidgetHtml, LEGACY_WIDGET_URIS, WIDGET_HTML_GUARD_BYTES, WIDGET_URI } from '../mcp/lib/widget.ts'
 
 const expectedTools = [
+  'open_coart_editor',
   'render_coart_canvas',
   'get_coart_canvas_state',
   'save_coart_canvas_state',
@@ -11,6 +12,7 @@ const expectedTools = [
   'get_coart_selection',
   'save_coart_reference_image',
   'read_coart_asset',
+  'get_coart_latest_image',
   'insert_coart_image',
   'insert_coart_html',
   'download_coart_file'
@@ -81,15 +83,15 @@ try {
   if (/html,body(?:,#root)?\{[^}]*height:100%/.test(decodedHtml)
     || !/html,body(?:,#root)?\{[^}]*min-height:640px/.test(decodedHtml)
     || !/\.coart-app\{[^}]*min-height:640px/.test(decodedHtml)
-    || !/\.coart-app>\.tl-container\{[^}]*min-height:640px/.test(decodedHtml)) {
+    || !/\.coart-fabric-shell\{[^}]*min-height:640px/.test(decodedHtml)) {
     throw new Error('Widget must keep a non-zero intrinsic height for MCP host autoResize handshakes.')
   }
   if (html.includes('data-coart-loader') || html.includes('DecompressionStream') || html.includes('document.importNode')) {
     throw new Error('Widget unexpectedly contains the legacy runtime document-rewrite loader.')
   }
   if (!decodedHtml.includes('<style>') || !decodedHtml.includes('<script>')) throw new Error('Widget build was not inlined.')
-  if (!decodedHtml.includes('DOMParser') || !decodedHtml.includes('createObjectURL') || !decodedHtml.includes('image/svg+xml')) {
-    throw new Error('Widget did not include the self-contained SVG icon path for tldraw icons.')
+  if (!decodedHtml.includes('coart-fabric-canvas') || !decodedHtml.includes('fabric')) {
+    throw new Error('Widget did not include the self-contained Fabric.js canvas bundle.')
   }
   const outerHeadClose = decodedHtml.lastIndexOf('</head>')
   const bridgeBundle = decodedHtml.indexOf('__COART_EXT_APPS__')
