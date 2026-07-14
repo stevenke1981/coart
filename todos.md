@@ -26,6 +26,7 @@
 - [x] MCP Widget gzip loader、外層 head 注入與 Chromium mount smoke
 - [x] 前端 JavaScript 遷移為嚴格 TypeScript/TSX
 - [x] Widget hydration 完成前停用 autosave，避免初始空白快照覆蓋既有畫布
+- [x] MCP Apps resource teardown handler，避免切換 Codex 對話時 Widget 進入白頁
 
 ## 下一版（v0.2）
 

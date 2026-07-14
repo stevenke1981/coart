@@ -129,6 +129,10 @@ function bridgeScript() {
       }
     };
     app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: true });
+    // MCP Apps hosts send ui/resource-teardown before unmounting a view, for
+    // example when the user switches conversations. Register the handler
+    // before connect() so the SDK can answer the lifecycle request cleanly.
+    app.onteardown = async () => ({});
     install();
     app.addEventListener('hostcontextchanged', contextChanged);
     app.addEventListener('toolresult', toolResult);

@@ -25,6 +25,11 @@
 - autosave 現在只會在 hydration 完成（或載入失敗已明確處理）後啟用，避免初始空白 store 覆蓋已保存的 image shape。
 - 已恢復八駿圖分鏡素材至 `canvas/assets/eight-steeds-storyboard-16x9-fixed.png`，並確認 hydrated snapshot 會把圖片轉為 data URL。
 
+## 2026-07-14 MCP Apps lifecycle hotfix
+
+- 在 `app.connect()` 前註冊 `app.onteardown`，讓 Codex 切換對話送出的 `ui/resource-teardown` 得到合法回應，避免 Widget 被宿主留在白色空頁。
+- `scripts/probe-mcp.mjs` 會檢查生成的 Widget bridge 包含 teardown handler。
+
 ## 已知限制
 
 - page asset lazy loading 尚未完成；目前讀取時會組合完整 snapshot。
