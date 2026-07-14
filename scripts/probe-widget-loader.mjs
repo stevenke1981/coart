@@ -54,7 +54,9 @@ const executable = browserCandidates().find((candidate) => existsSync(candidate)
 if (!executable) {
   console.log(JSON.stringify({ ok: true, skipped: true, reason: 'No Chrome/Chromium executable found.' }))
 } else {
-  const html = await widgetHtml()
+  const baseHtml = await widgetHtml()
+  const iconProbe = `<script>setTimeout(() => { const icon = document.querySelector('.tlui-icon'); const mask = icon?.style.mask || icon?.style.webkitMask || ''; document.documentElement.setAttribute('data-coart-icon-mask', mask); }, 1500)</script>`
+  const html = baseHtml.replace('</body>', `${iconProbe}</body>`)
   const server = http.createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
     response.end(html)
@@ -71,7 +73,8 @@ if (!executable) {
       && stdout.includes('tl-container')
     if (!mounted) throw new Error('Widget loader did not mount the React/tldraw canvas in Chromium.')
     if (stdout.includes('data-coart-loader')) throw new Error('Compressed loader marker remained after document hydration.')
-    console.log(JSON.stringify({ ok: true, browser: executable, mounted: true, domBytes: Buffer.byteLength(stdout) }))
+    if (!/data-coart-icon-mask="url\(/.test(stdout)) throw new Error('tldraw icons did not receive a CSS mask URL in Chromium.')
+    console.log(JSON.stringify({ ok: true, browser: executable, mounted: true, iconsMasked: true, domBytes: Buffer.byteLength(stdout) }))
   } finally {
     server.close()
     await rm(userDataDir, { recursive: true, force: true })

@@ -128,7 +128,7 @@ function bridgeScript() {
         app.requestDisplayMode({ mode: payload.preferredDisplayMode }).catch(() => {});
       }
     };
-    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: true });
+    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: false });
     // MCP Apps hosts send ui/resource-teardown before unmounting a view, for
     // example when the user switches conversations. Register the handler
     // before connect() so the SDK can answer the lifecycle request cleanly.

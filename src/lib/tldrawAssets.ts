@@ -1,4 +1,5 @@
 import iconSpriteUrl from '@tldraw/assets/icons/icon/0_merged.svg?url'
+import iconSpriteSource from '@tldraw/assets/icons/icon/0_merged.svg?raw'
 import embedIconsCanvaPngUrl from '@tldraw/assets/embed-icons/canva.png?url'
 import embedIconsCodepenPngUrl from '@tldraw/assets/embed-icons/codepen.png?url'
 import embedIconsCodesandboxPngUrl from '@tldraw/assets/embed-icons/codesandbox.png?url'
@@ -95,9 +96,49 @@ const embedIconUrls = {
   youtube: embedIconsYoutubePngUrl
 }
 
+function iconDataUrl(markup: string): string {
+  if (typeof TextEncoder !== 'undefined' && typeof btoa === 'function') {
+    const bytes = new TextEncoder().encode(markup)
+    let binary = ''
+    for (const byte of bytes) binary += String.fromCharCode(byte)
+    return `data:image/svg+xml;base64,${btoa(binary)}`
+  }
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`
+}
+
+function iconAssetUrl(markup: string): string {
+  if (typeof URL !== 'undefined' && typeof Blob !== 'undefined' && typeof URL.createObjectURL === 'function') {
+    return URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }))
+  }
+  return iconDataUrl(markup)
+}
+
+function buildIconUrls(): Record<string, string> {
+  const fallback = Object.fromEntries(iconTypes.map((key) => [key, `${iconSpriteUrl}#${key}`]))
+  if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') return fallback
+
+  const parsed = new DOMParser().parseFromString(iconSpriteSource, 'image/svg+xml')
+  const root = parsed.documentElement
+  if (!root || root.nodeName.toLowerCase() !== 'svg') return fallback
+
+  const serializer = new XMLSerializer()
+  const width = root.getAttribute('width') || '30'
+  const height = root.getAttribute('height') || '30'
+  const fill = root.getAttribute('fill') || 'none'
+  const children = Array.from(root.children)
+
+  const icons = Object.fromEntries(iconTypes.map((key) => {
+    const icon = children.find((child) => child.getAttribute('id') === key)
+    if (!icon) return [key, `${iconSpriteUrl}#${key}`]
+    const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" fill="${fill}">${serializer.serializeToString(icon)}</svg>`
+    return [key, iconAssetUrl(markup)]
+  }))
+  return icons
+}
+
 export const assetUrls: TLUiAssetUrls = {
   fonts: fontUrls,
-  icons: Object.fromEntries(iconTypes.map((key) => [key, `${iconSpriteUrl}#${key}`])),
+  icons: buildIconUrls(),
   translations: { ...mapKeys(translationKeys, translationUrl), 'zh-tw': translationZhTwUrl },
   embedIcons: embedIconUrls
 }

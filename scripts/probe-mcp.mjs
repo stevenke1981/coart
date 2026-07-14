@@ -56,6 +56,9 @@ try {
   if (!decodedHtml.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!/app\.onteardown\s*=/.test(decodedHtml)) throw new Error('Widget bridge teardown handler was not registered.')
   if (!decodedHtml.includes('<style>') || !decodedHtml.includes('<script>')) throw new Error('Widget build was not inlined.')
+  if (!decodedHtml.includes('DOMParser') || !decodedHtml.includes('createObjectURL') || !decodedHtml.includes('image/svg+xml')) {
+    throw new Error('Widget did not include the self-contained SVG icon path for tldraw icons.')
+  }
   const outerHeadClose = decodedHtml.lastIndexOf('</head>')
   const bridgeBundle = decodedHtml.indexOf('__COART_EXT_APPS__')
   if (outerHeadClose < 0 || bridgeBundle < 0 || bridgeBundle > outerHeadClose) {

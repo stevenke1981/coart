@@ -36,13 +36,18 @@
 - 改用 `DOMParser` 解析解壓後的 HTML，逐一將 `<head>`、`<body>` 的靜態節點與屬性導入 live document，並對所有 `<script>`（包含 `type="module"` 腳本）透過 `document.createElement` 重新建立與插入以觸發瀏覽器載入與執行。
 - 透過 `npm run probe:widget` 在 Headless Chrome 進行端到端加載測試，確認 React 與 tldraw canvas 完全 Mount 成功，無白屏問題。
 
+## 2026-07-14 tldraw icon sprite 修正
+
+- Widget build 會以本機 SVG source 解析每個 icon，為每個圖示建立不含 fragment 的單一 SVG `blob:` URL；這符合 tldraw 使用 CSS mask 的資產方式，也避開 MCP `data:` 文件的 fragment URL 被瀏覽器拒絕。
+- `scripts/probe-mcp.mjs` 會驗證 Widget bundle 包含 DOMParser、`createObjectURL` 與 SVG MIME path；`scripts/probe-widget-loader.mjs` 另外在 Headless Chrome 確認 tldraw icon 實際取得 CSS mask URL，不需載入外部 icon 資源。
+
 ## 已知限制
 
 - page asset lazy loading 尚未完成；目前讀取時會組合完整 snapshot。
 - image record deletion protection 尚未提供刪除／回收流程；v2 manifest 先將現有資產標記為 protected，且沒有自動刪檔。
 - Slides viewer 以 HTML slide 為主，圖片 slide 與完整匯出留待後續版本。
 - tldraw 與 MCP ext-apps 版本更新時，可能需要調整 API 相容性。
-- Production bundle 的主要 JS 約 3.89 MB；Widget decoded HTML 約 4.31 MB，但 MCP transport envelope 以 gzip + base64 壓至約 2.81 MB。4 MiB 是專案回歸防護線，不代表 Apps SDK 公布的固定限制；官方文件未公布固定 byte limit。
+- Production bundle 的主要 JS 約 3.94 MB；Widget decoded HTML 約 4.36 MB，但 MCP transport envelope 以 gzip + base64 壓至約 2.83 MB。4 MiB 是專案回歸防護線，不代表 Apps SDK 公布的固定限制；官方文件未公布固定 byte limit。
 - Widget 注入固定使用外層最後一個 `</head>`，主 bundle 使用 inline module timing，並以 single-bundle build 消除 `ui://` 資源無法追載的 lazy chunk。
 - Headless Chromium smoke 已確認 loader 解壓後實際掛載 `.coart-app`、tldraw container；尚未完成登入後的 ChatGPT Developer Mode host-level 驗收與像素級截圖。
 - `codex review --uncommitted` 對 53-file 初始 repo 的全量 review 在 184 秒逾時，未產生可用報告；改採針對 storage/manifest 提交協定的人工審查，並修正內容世代原子性與損壞 fallback 依賴問題。
@@ -56,9 +61,9 @@
 - `npm test`：11/11 通過（path、storage v2、immutable generations/assets、migration、recovery、prompt）。
 - `npm run build`：Vite production build 通過。
 - `npm run probe:mcp`：11 個 MCP tools、render tool、Widget resource 與 host bridge 通過。
-- `npm run probe:mcp`：驗證 envelope、外層 head 注入位置、壓縮 Widget 2,806,326 bytes，decoded 4,307,181 bytes。
+- `npm run probe:mcp`：驗證 envelope、外層 head 注入位置、壓縮 Widget 2,829,632 bytes，decoded 4,363,653 bytes。
 - `npm run probe:http`：Streamable HTTP `/mcp` 與 11 個 tools 通過。
-- `npm run probe:widget`：Chrome headless 實際掛載 React/tldraw，`mounted: true`。
+- `npm run probe:widget`：Chrome headless 實際掛載 React/tldraw，並確認 tldraw icons，`mounted: true`, `iconsMasked: true`。
 - hydration hotfix：直接讀取 `readCanvasState(..., { hydrateAssets: true })` 確認 image asset 會回傳 data URL，且 snapshot 保留 image shape。
 - Codex 安裝快取：`coart@coart-public` v0.2.4 安裝後，需從快取重新執行 stdio/HTTP/widget probes。
 

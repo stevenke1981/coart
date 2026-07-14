@@ -28,6 +28,7 @@
 - [x] Widget hydration 完成前停用 autosave，避免初始空白快照覆蓋既有畫布
 - [x] MCP Apps resource teardown handler，避免切換 Codex 對話時 Widget 進入白頁
 - [x] 修正 Widget 壓縮載入器在使用 `document.write()` 時無法執行 `<script type="module">` 導致 ChatGPT Codex 載入後白屏的問題。改用 DOMParser 與手動建立 script 節點執行。
+- [x] Widget production build 將 tldraw SVG sprite 拆成單一 icon 的 `blob:` URL，避免 MCP `data:` 文件的 fragment URL 導致 tldraw 工具圖示變成方塊。
 
 ## 下一版（v0.2）
 
