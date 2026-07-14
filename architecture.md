@@ -16,13 +16,14 @@ MCP server
 
 ## 前端模組
 
-- `App.jsx`：組合 tldraw、狀態載入、選取同步與面板。
-- `CanvasToolbar.jsx`：建立 AI image、AI HTML、Slides slot 與標註操作。
-- `GenerationPanel.jsx`：prompt、參考圖、頁數與 follow-up message。
-- `SlidesViewer.jsx`：讀取 Slides frame 的子 HTML shape 並播放。
-- `CoartHtmlShapeUtil.jsx`：使用 `iframe srcDoc` 顯示單檔 HTML。
-- `coartClient.js`：MCP bridge 與 localStorage fallback。
-- `prompts.js`：集中管理送給 Codex 的工作流提示詞。
+- `App.tsx`：組合 tldraw、狀態載入、選取同步與面板。
+- `CanvasToolbar.tsx`：建立 AI image、AI HTML、Slides slot 與標註操作。
+- `GenerationPanel.tsx`：prompt、參考圖、頁數與 follow-up message。
+- `SlidesViewer.tsx`：讀取 Slides frame 的子 HTML shape 並播放。
+- `CoartHtmlShapeUtil.tsx`：使用 `iframe srcDoc` 顯示單檔 HTML。
+- `coartClient.ts`：MCP bridge 與 localStorage fallback。
+- `prompts.ts`：集中管理送給 Codex 的工作流提示詞。
+- `tldrawAssets.ts`：自包含字型、圖示、embed 與 locale fallback 資產映射。
 
 ## MCP 模組
 

@@ -23,6 +23,8 @@
 - [x] storage unit tests
 - [x] ChatGPT Developer Mode Streamable HTTP `/mcp` 與 probe
 - [x] Codex/ChatGPT plugin marketplace 安裝包裝
+- [x] MCP Widget gzip loader、外層 head 注入與 Chromium mount smoke
+- [x] 前端 JavaScript 遷移為嚴格 TypeScript/TSX
 
 ## 下一版（v0.2）
 
@@ -32,12 +34,20 @@
 - [ ] Slides 拖放排序
 - [ ] 多格式 export（ZIP/PDF/PPTX）
 - [ ] image record deletion protection
-- [ ] Playwright Widget UI 測試
+- [ ] Playwright Widget UI 測試（目前已有可移植 Chromium headless smoke）
 - [ ] Windows 升級／原地更新腳本
 
-## TypeScript 漸進路線（不阻塞目前修復）
+## 公開功能對照後的優先工作（clean-room，不複製參考專案）
 
-- [ ] 先為 `window.coartMcp`、`window.openai` 與 storage records 加上 JSDoc／`.d.ts` 邊界型別
-- [ ] 將 `src/lib/coartClient.js`、prompt 與 autosave hook 轉為 `.ts`
-- [ ] 將 React UI 與 tldraw custom shape props 轉為 `.tsx`
-- [ ] 最後再評估 MCP/storage `.mjs` 的 TypeScript 編譯流程（避免改變 plugin entrypoint）
+- [ ] page-local asset lazy read，避免初次 hydrate 全部資產
+- [ ] image record deletion guard 與明確的 acknowledge/protect 參數
+- [ ] image/HTML insertion 的 placement、collision avoidance、dry-run 與 shape metadata
+- [ ] HTML DOM 文字編輯與 HTML/PNG export
+- [ ] Slides paste/drag auto-layout、PNG/HTML folder export
+- [ ] 補齊 3:2／2:3 aspect presets、aspect lock 與參考圖數量上限
+
+## TypeScript 邊界
+
+- [x] `window.coartMcp`、`window.openai`、MCP results、storage records 與 custom shape props 型別
+- [x] React UI、prompt、client、data URL 與 autosave hook 轉為 `.ts/.tsx`
+- [ ] 評估 MCP/storage `.mjs` 的 TypeScript 編譯流程（目前保留 `.mjs`，避免改變 plugin entrypoint）

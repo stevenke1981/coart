@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { htmlPrompt, imagePrompt, slidesPrompt } from '../src/lib/prompts.js'
+import { htmlPrompt, imagePrompt, slidesPrompt } from '../src/lib/prompts.ts'
 
 const shape = { id: 'shape:test', props: { w: 1024, h: 576 } }
 

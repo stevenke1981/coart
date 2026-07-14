@@ -1,13 +1,21 @@
-function ratio(width, height) {
+import type {
+  AnnotationPromptArgs,
+  HtmlPromptArgs,
+  ImagePromptArgs,
+  PromptReference,
+  SlidesPromptArgs
+} from '../types'
+
+function ratio(width: number, height: number): string {
   return `${width}:${height} (${(width / height).toFixed(4)})`
 }
 
-function referenceLines(references) {
+function referenceLines(references: PromptReference[] = []): string {
   if (!references?.length) return ''
   return `\n參考圖片（已保存到目前專案）：\n${references.map((item) => `- ${item.assetPathRelativeToProject || item.assetPath}`).join('\n')}`
 }
 
-export function imagePrompt({ userPrompt, shape, pageId, references = [] }) {
+export function imagePrompt({ userPrompt, shape, pageId, references = [] }: ImagePromptArgs): string {
   const width = shape.props?.w || 512
   const height = shape.props?.h || 512
   return [
@@ -26,7 +34,7 @@ export function imagePrompt({ userPrompt, shape, pageId, references = [] }) {
   ].filter(Boolean).join('\n')
 }
 
-export function htmlPrompt({ userPrompt, shape, pageId, references = [] }) {
+export function htmlPrompt({ userPrompt, shape, pageId, references = [] }: HtmlPromptArgs): string {
   const width = shape.props?.w || 1024
   const height = shape.props?.h || 576
   return [
@@ -44,7 +52,7 @@ export function htmlPrompt({ userPrompt, shape, pageId, references = [] }) {
   ].filter(Boolean).join('\n')
 }
 
-export function slidesPrompt({ userPrompt, shape, pageId, slideCount, references = [] }) {
+export function slidesPrompt({ userPrompt, shape, pageId, slideCount, references = [] }: SlidesPromptArgs): string {
   return [
     '[@coart](plugin://coart@personal) 生成 AI Slides',
     '',
@@ -60,7 +68,7 @@ export function slidesPrompt({ userPrompt, shape, pageId, slideCount, references
   ].filter(Boolean).join('\n')
 }
 
-export function annotationPrompt({ pageId, screenshot }) {
+export function annotationPrompt({ pageId, screenshot }: AnnotationPromptArgs): string {
   return [
     '[@coart](plugin://coart@personal) 按標註修改',
     '',

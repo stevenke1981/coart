@@ -17,6 +17,8 @@ Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布
 - 多選形狀匯出成標註截圖，再交給 Codex 進行修改。
 - HTML Slides 預覽與全螢幕播放。
 - 無 MCP 時使用瀏覽器 localStorage，方便前端開發。
+- 前端使用嚴格 TypeScript/TSX；MCP server 維持可直接執行的 `.mjs` entrypoint。
+- Widget 以 gzip + base64 自包含 loader 傳輸，並以 Chromium smoke 驗證實際掛載。
 
 ## 從 GitHub 安裝到 Codex / ChatGPT desktop
 
@@ -58,6 +60,14 @@ npm run dev
 
 本機開發不依賴 MCP；畫布會保存到瀏覽器 localStorage。原生 Widget 模式才會保存到目前專案的 `canvas/`。
 
+Node.js 22.6+ 可直接執行測試內的 TypeScript prompt 匯入；正式 MCP entrypoint 不需要額外 TypeScript runtime。
+
+## Widget HTML 大小與自包含載入
+
+ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 不再直接傳送約 4.31 MB 的 decoded HTML，而是傳送約 2.81 MB 的 gzip/base64 envelope，由瀏覽器內建 `DecompressionStream` 還原；`npm run probe:mcp` 會以 4 MiB 作為專案回歸防護線，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/tldraw 已掛載。
+
+MCP Apps 的[官方規格](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)要求 Widget resource 是有效 HTML5；[Apps SDK 文件](https://developers.openai.com/apps-sdk/build/mcp-server/)說明 CSP metadata 與 resource registration，但沒有公布固定 HTML byte 上限，實際 host 仍應在登入後的 Developer Mode 進行驗收。
+
 ## MCP 工具
 
 - `render_coart_canvas`
@@ -78,7 +88,7 @@ npm run dev
 npm run quality
 ```
 
-此命令執行 syntax check、unit tests、Vite build、stdio MCP probe 與 Streamable HTTP MCP probe。
+此命令執行 syntax check、TypeScript typecheck、unit tests、Vite build、stdio/HTTP MCP probes 與 Chrome widget loader smoke。
 
 ## 專案結構
 

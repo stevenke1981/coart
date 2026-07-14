@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Paperclip, Send, X } from 'lucide-react'
-import { COART_KINDS } from '../constants.js'
-import { fileToDataUrl } from '../lib/dataUrl.js'
-import { saveReferenceImage, sendFollowUpMessage } from '../lib/coartClient.js'
-import { htmlPrompt, imagePrompt, slidesPrompt } from '../lib/prompts.js'
+import { COART_KINDS } from '../constants'
+import { fileToDataUrl } from '../lib/dataUrl'
+import { saveReferenceImage, sendFollowUpMessage } from '../lib/coartClient'
+import { htmlPrompt, imagePrompt, slidesPrompt } from '../lib/prompts'
+import type { AnyCanvasShape, EditorLike, PromptShape } from '../types'
 
-function modeForShape(shape) {
+type GenerationMode = 'image' | 'html' | 'slides'
+
+function modeForShape(shape: AnyCanvasShape | null): GenerationMode | null {
   const kind = shape?.meta?.coartKind
   if (kind === COART_KINDS.AI_IMAGE) return 'image'
   if (kind === COART_KINDS.AI_HTML) return 'html'
@@ -13,15 +16,25 @@ function modeForShape(shape) {
   return null
 }
 
-export function GenerationPanel({ editor, selectedShape, onStatus }) {
+interface GenerationPanelProps {
+  editor: EditorLike | null
+  selectedShape: AnyCanvasShape | null
+  onStatus?: (message: string) => void
+}
+
+export function GenerationPanel({ editor, selectedShape, onStatus }: GenerationPanelProps) {
   const [prompt, setPrompt] = useState('')
-  const [files, setFiles] = useState([])
+  const [files, setFiles] = useState<File[]>([])
   const [slideCount, setSlideCount] = useState(5)
   const [busy, setBusy] = useState(false)
   const mode = modeForShape(selectedShape)
-  const title = useMemo(() => ({ image: '生成 AI 圖片', html: '生成 AI HTML', slides: '生成 AI Slides' }[mode]), [mode])
+  const title = useMemo(() => (mode ? {
+    image: '生成 AI 圖片',
+    html: '生成 AI HTML',
+    slides: '生成 AI Slides'
+  }[mode] : ''), [mode])
 
-  if (!mode || !editor) return null
+  if (!mode || !editor || !selectedShape) return null
 
   const submit = async () => {
     if (!prompt.trim()) {
@@ -43,7 +56,13 @@ export function GenerationPanel({ editor, selectedShape, onStatus }) {
         }))
       }
 
-      const args = { userPrompt: prompt, shape: selectedShape, pageId, references, slideCount }
+      const args = {
+        userPrompt: prompt,
+        shape: selectedShape as PromptShape,
+        pageId,
+        references,
+        slideCount
+      }
       const message = mode === 'image'
         ? imagePrompt(args)
         : mode === 'html'
@@ -53,9 +72,9 @@ export function GenerationPanel({ editor, selectedShape, onStatus }) {
       onStatus?.('已將生成任務送交 Codex')
       setPrompt('')
       setFiles([])
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error)
-      onStatus?.(`送出失敗：${error.message}`)
+      onStatus?.(`送出失敗：${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setBusy(false)
     }

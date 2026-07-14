@@ -1,34 +1,35 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Tldraw } from 'tldraw'
-import { getAssetUrlsByImport } from '@tldraw/assets/imports.vite'
 import 'tldraw/tldraw.css'
-import { CanvasToolbar } from './components/CanvasToolbar.jsx'
-import { CoartHtmlShapeUtil } from './components/CoartHtmlShapeUtil.jsx'
-import { GenerationPanel } from './components/GenerationPanel.jsx'
-import { SlidesViewer } from './components/SlidesViewer.jsx'
-import { StatusToast } from './components/StatusToast.jsx'
-import { blobToDataUrl } from './lib/dataUrl.js'
-import { annotationPrompt } from './lib/prompts.js'
+import { CanvasToolbar } from './components/CanvasToolbar'
+import { CoartHtmlShapeUtil } from './components/CoartHtmlShapeUtil'
+import { GenerationPanel } from './components/GenerationPanel'
+import { SlidesViewer } from './components/SlidesViewer'
+import { StatusToast } from './components/StatusToast'
+import { blobToDataUrl } from './lib/dataUrl'
+import { annotationPrompt } from './lib/prompts'
 import {
   loadCanvasState,
   saveCanvasState,
   saveReferenceImage,
   sendFollowUpMessage
-} from './lib/coartClient.js'
-import { useAutosave } from './hooks/useAutosave.js'
+} from './lib/coartClient'
+import { useAutosave } from './hooks/useAutosave'
+import { assetUrls } from './lib/tldrawAssets'
+import type { AnyCanvasShape, CoartHtmlShape, EditorLike } from './types'
+import type { TLPageId } from 'tldraw'
 
 const shapeUtils = [CoartHtmlShapeUtil]
-const assetUrls = getAssetUrlsByImport()
 
 export default function App() {
-  const [editor, setEditor] = useState(null)
-  const [selectedShape, setSelectedShape] = useState(null)
+  const [editor, setEditor] = useState<EditorLike | null>(null)
+  const [selectedShape, setSelectedShape] = useState<AnyCanvasShape | null>(null)
   const [aspectId, setAspectId] = useState('3:4')
   const [status, setStatus] = useState('')
-  const [slides, setSlides] = useState([])
-  const statusTimerRef = useRef(null)
+  const [slides, setSlides] = useState<CoartHtmlShape[]>([])
+  const statusTimerRef = useRef<number | undefined>(undefined)
 
-  const showStatus = useCallback((message) => {
+  const showStatus = useCallback((message: string) => {
     setStatus(message)
     window.clearTimeout(statusTimerRef.current)
     statusTimerRef.current = window.setTimeout(() => setStatus(''), 2600)
@@ -36,42 +37,44 @@ export default function App() {
 
   useAutosave(editor, showStatus)
 
-  const handleMount = useCallback(async (nextEditor) => {
+  const handleMount = useCallback((nextEditor: EditorLike): void => {
     setEditor(nextEditor)
-    try {
-      const state = await loadCanvasState()
-      if (state.snapshot?.store && state.snapshot?.schema) {
-        nextEditor.store.loadStoreSnapshot(state.snapshot)
+    void (async () => {
+      try {
+        const state = await loadCanvasState()
+        if (state.snapshot?.store && state.snapshot?.schema) {
+          nextEditor.store.loadStoreSnapshot(state.snapshot)
+        }
+        if (state.viewState?.currentPageId && nextEditor.store.has(state.viewState.currentPageId as TLPageId)) {
+          nextEditor.setCurrentPage(state.viewState.currentPageId as TLPageId)
+        }
+        if (state.viewState?.camera) nextEditor.setCamera(state.viewState.camera)
+        showStatus(`畫布已載入（${state.storage || 'project'}）`)
+      } catch (error: unknown) {
+        console.error(error)
+        showStatus(`載入失敗：${error instanceof Error ? error.message : String(error)}`)
       }
-      if (state.viewState?.currentPageId && nextEditor.store.has(state.viewState.currentPageId)) {
-        nextEditor.setCurrentPage(state.viewState.currentPageId)
-      }
-      if (state.viewState?.camera) nextEditor.setCamera(state.viewState.camera)
-      showStatus(`畫布已載入（${state.storage || 'project'}）`)
-    } catch (error) {
-      console.error(error)
-      showStatus(`載入失敗：${error.message}`)
-    }
 
-    const updateSelection = () => {
-      const ids = nextEditor.getSelectedShapeIds()
-      setSelectedShape(ids.length === 1 ? nextEditor.getShape(ids[0]) : null)
-    }
-    updateSelection()
-    nextEditor.store.listen(updateSelection, { scope: 'session' })
+      const updateSelection = () => {
+        const ids = nextEditor.getSelectedShapeIds()
+        setSelectedShape(ids.length === 1 ? (nextEditor.getShape(ids[0]) as AnyCanvasShape | undefined) ?? null : null)
+      }
+      updateSelection()
+      nextEditor.store.listen(updateSelection, { scope: 'session' })
+    })()
   }, [showStatus])
 
-  const saveNow = useCallback(async () => {
+  const saveNow = useCallback(async (): Promise<void> => {
     if (!editor) return
     try {
       await saveCanvasState(editor.store.getStoreSnapshot('document'))
       showStatus('已立即儲存')
-    } catch (error) {
-      showStatus(`儲存失敗：${error.message}`)
+    } catch (error: unknown) {
+      showStatus(`儲存失敗：${error instanceof Error ? error.message : String(error)}`)
     }
   }, [editor, showStatus])
 
-  const annotate = useCallback(async () => {
+  const annotate = useCallback(async (): Promise<void> => {
     if (!editor) return
     const ids = editor.getSelectedShapeIds()
     if (!ids.length) {
@@ -92,9 +95,9 @@ export default function App() {
       })
       await sendFollowUpMessage(annotationPrompt({ pageId, screenshot }))
       showStatus('已將標註修改任務送交 Codex')
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error)
-      showStatus(`標註匯出失敗：${error.message}`)
+      showStatus(`標註匯出失敗：${error instanceof Error ? error.message : String(error)}`)
     }
   }, [editor, showStatus])
 
@@ -110,7 +113,7 @@ export default function App() {
       showStatus('這個 Slides 尚未包含 HTML 頁面')
       return
     }
-    setSlides(children)
+    setSlides(children as CoartHtmlShape[])
   }, [editor, selectedShape, showStatus])
 
   const components = useMemo(() => ({

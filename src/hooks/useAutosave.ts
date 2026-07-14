@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { SAVE_DEBOUNCE_MS } from '../constants.js'
-import { saveCanvasState, saveSelection, saveViewState } from '../lib/coartClient.js'
+import { SAVE_DEBOUNCE_MS } from '../constants'
+import { saveCanvasState, saveSelection, saveViewState } from '../lib/coartClient'
+import type { AnyCanvasShape, EditorLike, SelectionState, ViewState } from '../types'
 
-export function useAutosave(editor, onStatus) {
-  const timerRef = useRef(null)
+export function useAutosave(editor: EditorLike | null, onStatus?: (message: string) => void): void {
+  const timerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     if (!editor) return undefined
@@ -14,14 +15,17 @@ export function useAutosave(editor, onStatus) {
         try {
           const snapshot = editor.store.getStoreSnapshot('document')
           const selectedIds = editor.getSelectedShapeIds()
-          const selection = {
+          const selection: SelectionState = {
             version: 1,
             pageId: editor.getCurrentPageId(),
-            selectedShapeIds: selectedIds,
-            selectedShapes: selectedIds.map((id) => editor.getShape(id)).filter(Boolean),
+            selectedShapeIds: selectedIds.map(String),
+            selectedShapes: selectedIds
+              .map((id) => editor.getShape(id))
+              .filter((shape): shape is AnyCanvasShape => Boolean(shape))
+              .map((shape) => shape as AnyCanvasShape),
             updatedAt: new Date().toISOString()
           }
-          const viewState = {
+          const viewState: ViewState = {
             version: 1,
             currentPageId: editor.getCurrentPageId(),
             camera: editor.getCamera(),
@@ -33,9 +37,9 @@ export function useAutosave(editor, onStatus) {
             saveViewState(viewState)
           ])
           onStatus?.('已儲存')
-        } catch (error) {
+        } catch (error: unknown) {
           console.error(error)
-          onStatus?.(`儲存失敗：${error.message}`)
+          onStatus?.(`儲存失敗：${error instanceof Error ? error.message : String(error)}`)
         }
       }, SAVE_DEBOUNCE_MS)
     }

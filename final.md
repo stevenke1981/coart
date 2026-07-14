@@ -1,4 +1,4 @@
-# Coart v0.2 Reliability Delivery
+# Coart v0.2.4 Reliability Delivery
 
 本交付在獨立 clean-room `coart` 專案上完成 v0.2 儲存與安裝可靠性升級，不依賴 Cowart 原始碼或品牌資產。
 
@@ -14,6 +14,9 @@
 - stdio 與 Streamable HTTP 兩種 MCP transport。
 - 公開 GitHub marketplace 與本機 Codex 安裝流程。
 - 三個 Codex skills。
+- 前端全面改為嚴格 TypeScript/TSX，集中 bridge、storage、prompt 與 tldraw shape 型別。
+- gzip/base64 自包含 Widget loader，避免 MCP HTML resource 超過 host 支援上限。
+- 以公開 Cowart 功能說明作 clean-room 對照，保留 Coart 自有名稱、schema、UI 文案與資產；差異化缺口已寫入 `todos.md`，未複製參考專案程式碼。
 - 分析、架構、規格、計畫、TODO、測試、Agent 團隊、追蹤矩陣與啟動提示詞。
 
 ## 已知限制
@@ -22,20 +25,23 @@
 - image record deletion protection 尚未提供刪除／回收流程；v2 manifest 先將現有資產標記為 protected，且沒有自動刪檔。
 - Slides viewer 以 HTML slide 為主，圖片 slide 與完整匯出留待後續版本。
 - tldraw 與 MCP ext-apps 版本更新時，可能需要調整 API 相容性。
-- Production bundle 的主要 JS 約 5.6 MB；Widget inline 後約 6.05 MB。HTML 組裝使用 replacement callback，避免 minified bundle 的 `$&`／`$``／`$'` 被 `String.replace` 展開造成重複內容。Apps SDK 文件未公布固定 byte limit，因此 probe 以 8 MiB 作為回歸防護線。
-- 容器內 Chromium 即使開啟空白頁也會因系統限制逾時，因此本次沒有完成像素級瀏覽器截圖檢查；Vite build 與 MCP Widget resource probe 均已通過。
+- Production bundle 的主要 JS 約 3.89 MB；Widget decoded HTML 約 4.31 MB，但 MCP transport envelope 以 gzip + base64 壓至約 2.81 MB。4 MiB 是專案回歸防護線，不代表 Apps SDK 公布的固定限制；官方文件未公布固定 byte limit。
+- Widget 注入固定使用外層最後一個 `</head>`，主 bundle 使用 inline module timing，並以 single-bundle build 消除 `ui://` 資源無法追載的 lazy chunk。
+- Headless Chromium smoke 已確認 loader 解壓後實際掛載 `.coart-app`、tldraw container；尚未完成登入後的 ChatGPT Developer Mode host-level 驗收與像素級截圖。
 - `codex review --uncommitted` 對 53-file 初始 repo 的全量 review 在 184 秒逾時，未產生可用報告；改採針對 storage/manifest 提交協定的人工審查，並修正內容世代原子性與損壞 fallback 依賴問題。
-- TypeScript 評估結論：目前不做全面重寫；先以 JSDoc／`.d.ts` 建立 bridge 與 storage 邊界，再分階段轉換前端。MCP `.mjs` 直接由 Node 執行，若立即改 `.ts` 會牽涉 `tsx` runtime 或額外編譯輸出與 plugin entrypoint。
+- TypeScript 目前採前端完整遷移、MCP `.mjs` 保留的邊界：前端可由 `tsc --noEmit` 嚴格檢查；MCP 入口仍由 Node 直接執行，避免 plugin entrypoint 引入額外 runtime。
 
 ## 已完成驗證
 
 - `npm run check`：通過。
+- `npm run typecheck`：通過。
 - `npm test`：11/11 通過（path、storage v2、immutable generations/assets、migration、recovery、prompt）。
 - `npm run build`：Vite production build 通過。
 - `npm run probe:mcp`：11 個 MCP tools、render tool、Widget resource 與 host bridge 通過。
-- `npm run probe:mcp`：另驗證 Widget HTML 未重複且小於 8 MiB（目前約 6.05 MB）。
+- `npm run probe:mcp`：驗證 envelope、外層 head 注入位置、壓縮 Widget 2,806,326 bytes，decoded 4,307,181 bytes。
 - `npm run probe:http`：Streamable HTTP `/mcp` 與 11 個 tools 通過。
-- Codex 安裝快取：`coart@coart-public` 已安裝，且從快取執行 stdio/HTTP probes 均通過。
+- `npm run probe:widget`：Chrome headless 實際掛載 React/tldraw，`mounted: true`。
+- Codex 安裝快取：`coart@coart-public` v0.2.4 安裝後，需從快取重新執行 stdio/HTTP/widget probes。
 
 ## 建議第一個 Codex 實機驗證
 

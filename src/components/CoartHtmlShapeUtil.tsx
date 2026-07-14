@@ -1,6 +1,13 @@
 import { BaseBoxShapeUtil, HTMLContainer, T, useIsEditing } from 'tldraw'
+import type { CoartHtmlShape, CoartHtmlShapeProps } from '../types'
 
-export class CoartHtmlShapeUtil extends BaseBoxShapeUtil {
+declare module '@tldraw/tlschema' {
+  interface TLGlobalShapePropsMap {
+    'coart-html': CoartHtmlShapeProps
+  }
+}
+
+export class CoartHtmlShapeUtil extends BaseBoxShapeUtil<CoartHtmlShape> {
   static type = 'coart-html'
 
   static props = {
@@ -25,7 +32,7 @@ export class CoartHtmlShapeUtil extends BaseBoxShapeUtil {
     return true
   }
 
-  component(shape) {
+  component(shape: CoartHtmlShape) {
     const isEditing = useIsEditing(shape.id)
     return (
       <HTMLContainer className="coart-html-shape" style={{ pointerEvents: isEditing ? 'all' : 'none' }}>
@@ -39,7 +46,7 @@ export class CoartHtmlShapeUtil extends BaseBoxShapeUtil {
     )
   }
 
-  getIndicatorPath(shape) {
+  getIndicatorPath(shape: CoartHtmlShape) {
     const path = new Path2D()
     path.rect(0, 0, shape.props.w, shape.props.h)
     return path

@@ -1,10 +1,12 @@
+import type { AspectPreset } from './types'
+
 export const COART_KINDS = {
   AI_IMAGE: 'ai-image',
   AI_HTML: 'ai-html',
   SLIDES: 'slides'
-}
+} as const
 
-export const ASPECT_PRESETS = [
+export const ASPECT_PRESETS: readonly AspectPreset[] = [
   { id: '1:1', width: 512, height: 512 },
   { id: '4:3', width: 683, height: 512 },
   { id: '3:4', width: 512, height: 683 },

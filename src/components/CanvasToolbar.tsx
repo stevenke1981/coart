@@ -1,13 +1,21 @@
 import { FileCode2, ImagePlus, MonitorPlay, MousePointer2, PencilLine, Presentation, Save } from 'lucide-react'
 import { createShapeId } from 'tldraw'
-import { ASPECT_PRESETS, COART_KINDS, DEFAULT_HTML_SIZE, DEFAULT_SLIDES_SIZE } from '../constants.js'
+import { ASPECT_PRESETS, COART_KINDS, DEFAULT_HTML_SIZE, DEFAULT_SLIDES_SIZE } from '../constants'
+import type { CoartKind, EditorLike } from '../types'
 
-function viewportPoint(editor) {
+interface FrameOptions {
+  kind: CoartKind
+  width: number
+  height: number
+  name: string
+}
+
+function viewportPoint(editor: EditorLike): { x: number; y: number } {
   const bounds = editor.getViewportPageBounds()
   return { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 }
 }
 
-function createFrame(editor, { kind, width, height, name }) {
+function createFrame(editor: EditorLike, { kind, width, height, name }: FrameOptions): void {
   const center = viewportPoint(editor)
   const id = createShapeId()
   editor.createShape({
@@ -21,7 +29,16 @@ function createFrame(editor, { kind, width, height, name }) {
   editor.select(id)
 }
 
-export function CanvasToolbar({ editor, aspectId, onAspectChange, onAnnotate, onOpenSlides, onSaveNow }) {
+interface CanvasToolbarProps {
+  editor: EditorLike | null
+  aspectId: string
+  onAspectChange: (value: string) => void
+  onAnnotate: () => void
+  onOpenSlides: () => void
+  onSaveNow: () => void
+}
+
+export function CanvasToolbar({ editor, aspectId, onAspectChange, onAnnotate, onOpenSlides, onSaveNow }: CanvasToolbarProps) {
   if (!editor) return null
   const preset = ASPECT_PRESETS.find((item) => item.id === aspectId) || ASPECT_PRESETS[2]
 

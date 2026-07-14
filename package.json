@@ -1,17 +1,22 @@
 {
   "name": "coart-canvas",
-  "version": "0.2.1",
+  "version": "0.2.4",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.6.0"
+  },
   "description": "A clean-room Codex native infinite-canvas widget for AI image, HTML, slides, and annotation workflows.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "check": "node --check mcp/server.mjs && node --check mcp/lib/storage.mjs && node --check mcp/lib/safety.mjs && node --check mcp/lib/widget.mjs && node --check scripts/start-mcp.mjs && node --check scripts/start-http.mjs && node --check scripts/probe-http.mjs",
-    "test": "node --test tests/*.test.mjs",
-    "quality": "npm run check && npm test && npm run build && npm run probe:mcp && npm run probe:http",
+    "typecheck": "tsc --noEmit",
+    "check": "node --check mcp/server.mjs && node --check mcp/lib/storage.mjs && node --check mcp/lib/safety.mjs && node --check mcp/lib/widget.mjs && node --check scripts/start-mcp.mjs && node --check scripts/start-http.mjs && node --check scripts/probe-http.mjs && node --check scripts/probe-widget-loader.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "quality": "npm run check && npm run typecheck && npm test && npm run build && npm run probe:mcp && npm run probe:http && npm run probe:widget",
     "probe:mcp": "node scripts/probe-mcp.mjs",
     "probe:http": "node scripts/probe-http.mjs",
+    "probe:widget": "node scripts/probe-widget-loader.mjs",
     "start:http": "node scripts/start-http.mjs"
   },
   "dependencies": {
@@ -26,5 +31,10 @@
     "tldraw": "^5.1.1",
     "vite": "^7.0.0",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^7.0.2"
   }
 }

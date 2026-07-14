@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react'
+import type { CoartHtmlShape } from '../types'
 
-export function SlidesViewer({ slides, onClose }) {
+interface SlidesViewerProps {
+  slides: CoartHtmlShape[]
+  onClose: () => void
+}
+
+export function SlidesViewer({ slides, onClose }: SlidesViewerProps) {
   const [index, setIndex] = useState(0)
   const [fullscreen, setFullscreen] = useState(false)
 
   useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === 'Escape') onClose?.()
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onClose()
       if (event.key === 'ArrowRight' || event.key === ' ') setIndex((value) => Math.min(slides.length - 1, value + 1))
       if (event.key === 'ArrowLeft') setIndex((value) => Math.max(0, value - 1))
     }
@@ -31,7 +37,7 @@ export function SlidesViewer({ slides, onClose }) {
           {slides.map((item, itemIndex) => (
             <button key={item.id} className={itemIndex === index ? 'active' : ''} onClick={() => setIndex(itemIndex)}>
               <span>{itemIndex + 1}</span>
-              <iframe title={`縮圖 ${itemIndex + 1}`} srcDoc={item.props.html} sandbox="" tabIndex="-1" />
+              <iframe title={`縮圖 ${itemIndex + 1}`} srcDoc={item.props.html} sandbox="" tabIndex={-1} />
             </button>
           ))}
         </nav>

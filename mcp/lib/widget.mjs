@@ -5,6 +5,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gunzipSync, gzipSync } from 'node:zlib'
 import { RESOURCE_MIME_TYPE, registerAppResource } from '@modelcontextprotocol/ext-apps/server'
 
 const require = createRequire(import.meta.url)
@@ -12,6 +13,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const manifest = JSON.parse(readFileSync(join(root, '.codex-plugin', 'plugin.json'), 'utf8'))
 export const WIDGET_URI = 'ui://widget/coart/canvas.html'
 export const WIDGET_BUILD_DIR = join(tmpdir(), `coart-widget-${manifest.version}`)
+export const WIDGET_HTML_GUARD_BYTES = 4 * 1024 * 1024
+const WIDGET_LOADER_MARKER = 'coart-widget-gzip-v1'
 let cachedHtml = null
 let cachedAppsBundle = null
 
@@ -55,7 +58,10 @@ async function inlineBuild() {
   })
   html = await replaceAsync(html, /<script\s+type="module"[^>]+src="([^"]+)"[^>]*><\/script>/g, async (_all, src) => {
     const js = await readFile(join(WIDGET_BUILD_DIR, src.replace(/^\//, '')), 'utf8')
-    return `<script>(()=>{${js.replaceAll('</script', '<\\/script')}})();</script>`
+    // Vite emits the module script in <head>. Preserve module timing so React
+    // mounts only after the parsed document contains #root, including when the
+    // compressed loader reparses the document with document.write().
+    return `<script type="module">(()=>{${js.replaceAll('</script', '<\\/script')}})();</script>`
   })
   const assetsDir = join(WIDGET_BUILD_DIR, 'assets')
   if (existsSync(assetsDir)) {
@@ -141,13 +147,57 @@ function bridgeScript() {
   })();`
 }
 
+function compressedWidgetHtml(source) {
+  const payload = gzipSync(Buffer.from(source, 'utf8'), { level: 9 }).toString('base64')
+  const encodedPayload = JSON.stringify(payload)
+  return `<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Coart Canvas</title>
+    <script data-coart-loader="${WIDGET_LOADER_MARKER}">
+      (async () => {
+        const encoded = atob(${encodedPayload});
+        const compressed = Uint8Array.from(encoded, (character) => character.charCodeAt(0));
+        const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+        const html = await new Response(stream).text();
+        document.open();
+        document.write(html);
+        document.close();
+      })().catch((error) => {
+        document.body.textContent = 'Coart widget failed to load.';
+        console.error(error);
+      });
+    </script>
+  </head>
+  <body>
+    <p>Loading Coart canvas…</p>
+  </body>
+</html>`
+}
+
+export function decodeWidgetHtml(source) {
+  const marker = `data-coart-loader="${WIDGET_LOADER_MARKER}"`
+  if (!source.includes(marker)) return source
+  const match = source.match(/const encoded = atob\(("[A-Za-z0-9+/=]+")\)/)
+  if (!match) throw new Error('Compressed Coart Widget payload is missing.')
+  return gunzipSync(Buffer.from(JSON.parse(match[1]), 'base64')).toString('utf8')
+}
+
 export async function widgetHtml() {
   if (cachedHtml) return cachedHtml
   const base = await inlineBuild()
   const injected = `<script>${appsBundle().replaceAll('</script', '<\\/script')}</script><script>${bridgeScript().replaceAll('</script', '<\\/script')}</script>`
-  // Use a replacement function: minified bundles can contain `$&`, `$`` or `$'`,
-  // which String#replace interprets when a replacement string is supplied.
-  cachedHtml = base.includes('</head>') ? base.replace('</head>', () => `${injected}</head>`) : `${injected}${base}`
+  // The tldraw bundle contains HTML strings of its own, including `</head>`.
+  // Inject into the outer document's final closing head tag, never the first
+  // embedded template occurrence.
+  const headClose = base.lastIndexOf('</head>')
+  const assembled = headClose >= 0
+    ? `${base.slice(0, headClose)}${injected}${base.slice(headClose)}`
+    : `${injected}${base}`
+  cachedHtml = compressedWidgetHtml(assembled)
   return cachedHtml
 }
 
