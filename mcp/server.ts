@@ -16,8 +16,8 @@ import {
   writeAsset,
   writeSelection,
   writeViewState
-} from './lib/storage.mjs'
-import { registerCoartWidgetResource, WIDGET_BUILD_DIR, WIDGET_URI } from './lib/widget.mjs'
+} from './lib/storage.ts'
+import { registerCoartWidgetResource, WIDGET_BUILD_DIR, WIDGET_URI } from './lib/widget.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifest = JSON.parse(readFileSync(join(root, '.codex-plugin', 'plugin.json'), 'utf8'))
@@ -31,8 +31,8 @@ const targetSchema = {
   canvasDir: z.string().trim().optional()
 }
 
-function result(text, structuredContent, extraMeta = {}) {
-  return { content: [{ type: 'text', text }], structuredContent, _meta: extraMeta }
+function result(text: string, structuredContent: unknown, extraMeta: Record<string, unknown> = {}): any {
+  return { content: [{ type: 'text' as const, text }], structuredContent, _meta: extraMeta }
 }
 
 registerCoartWidgetResource(server)
@@ -50,7 +50,7 @@ registerAppTool(server, 'render_coart_canvas', {
     'openai/toolInvocation/invoking': 'Opening Coart canvas…',
     'openai/toolInvocation/invoked': 'Coart canvas ready'
   }
-}, async (input = {}) => {
+}, async (input: any = {}) => {
   const paths = resolveCoartPaths(input)
   const widgetData = {
     version: 1,
@@ -74,7 +74,7 @@ server.registerTool('get_coart_canvas_state', {
   description: 'Use this when you need the persisted Coart snapshot, view state, selection, manifest, or storage paths.',
   inputSchema: { ...targetSchema, hydrateAssets: z.boolean().optional() },
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-}, async (input = {}) => {
+}, async (input: any = {}) => {
   const state = await readCanvasState(input, { hydrateAssets: input.hydrateAssets === true })
   return result(`Loaded Coart canvas state from ${state.canvasDir}.`, state)
 })
@@ -84,28 +84,28 @@ server.registerTool('save_coart_canvas_state', {
   description: 'Use this when the widget needs to persist a Coart/tldraw snapshot and localize data URL assets.',
   inputSchema: { ...targetSchema, snapshot: z.any() },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-}, async (input = {}) => result('Saved Coart canvas state.', await saveCanvasSnapshot(input, input.snapshot)))
+}, async (input: any = {}) => result('Saved Coart canvas state.', await saveCanvasSnapshot(input, input.snapshot)))
 
 server.registerTool('save_coart_selection', {
   title: 'Save Coart Selection',
   description: 'Use this when the widget selection changes and Codex must target the same selected shapes.',
   inputSchema: { ...targetSchema, selection: z.any() },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-}, async (input = {}) => result('Saved Coart selection.', await writeSelection(input, input.selection)))
+}, async (input: any = {}) => result('Saved Coart selection.', await writeSelection(input, input.selection)))
 
 server.registerTool('save_coart_view_state', {
   title: 'Save Coart View State',
   description: 'Use this when the widget needs to persist the active page and camera.',
   inputSchema: { ...targetSchema, viewState: z.any() },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-}, async (input = {}) => result('Saved Coart view state.', await writeViewState(input, input.viewState)))
+}, async (input: any = {}) => result('Saved Coart view state.', await writeViewState(input, input.viewState)))
 
 server.registerTool('get_coart_selection', {
   title: 'Get Coart Selection',
   description: 'Use this when a generation or edit workflow needs the current persisted Coart selection.',
   inputSchema: { ...targetSchema },
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-}, async (input = {}) => result('Loaded Coart selection.', await readSelection(input)))
+}, async (input: any = {}) => result('Loaded Coart selection.', await readSelection(input)))
 
 server.registerTool('save_coart_reference_image', {
   title: 'Save Coart Reference Image',
@@ -120,14 +120,14 @@ server.registerTool('save_coart_reference_image', {
     mimeType: z.string().trim().optional()
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-}, async (input = {}) => result('Saved Coart reference image.', await writeAsset(input, input)))
+}, async (input: any = {}) => result('Saved Coart reference image.', await writeAsset(input, input)))
 
 server.registerTool('read_coart_asset', {
   title: 'Read Coart Asset',
   description: 'Use this when a workflow needs to read one project-local /assets/... item as base64.',
   inputSchema: { ...targetSchema, assetUrl: z.string().trim() },
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-}, async (input = {}) => result(`Read ${input.assetUrl}.`, await readAsset(input, input.assetUrl)))
+}, async (input: any = {}) => result(`Read ${input.assetUrl}.`, await readAsset(input, input.assetUrl)))
 
 server.registerTool('insert_coart_image', {
   title: 'Insert Coart Image',
@@ -146,7 +146,7 @@ server.registerTool('insert_coart_image', {
     replaceHolder: z.boolean().optional()
   },
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
-}, async (input = {}) => result('Inserted Coart image.', await insertImage(input)))
+}, async (input: any = {}) => result('Inserted Coart image.', await insertImage(input)))
 
 server.registerTool('insert_coart_html', {
   title: 'Insert Coart HTML',
@@ -169,7 +169,7 @@ server.registerTool('insert_coart_html', {
     updateExisting: z.boolean().optional()
   },
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
-}, async (input = {}) => result('Inserted Coart HTML.', await insertHtml(input)))
+}, async (input: any = {}) => result('Inserted Coart HTML.', await insertHtml(input)))
 
 server.registerTool('download_coart_file', {
   title: 'Download Coart File',
@@ -183,7 +183,7 @@ server.registerTool('download_coart_file', {
     mimeType: z.string().trim().optional()
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
-}, async (input = {}) => result('Downloaded Coart file.', await downloadFile(input)))
+}, async (input: any = {}) => result('Downloaded Coart file.', await downloadFile(input)))
 
   return server
 }

@@ -27,9 +27,11 @@ MCP server
 
 ## MCP 模組
 
-- `server.mjs`：工具 schema、註冊與回傳格式。
-- `storage.mjs`：路徑、snapshot、資產、選取與視角狀態。
-- `widget.mjs`：Vite build、資源 inline、MCP Apps bridge 與 CSP。
+- `server.ts`：工具 schema、註冊與回傳格式。
+- `storage.ts`：路徑、snapshot、資產、選取與視角狀態。
+- `widget.ts`：Vite build、資源 inline、MCP Apps bridge 與 CSP。
+- `scripts/start-mcp.ts`：stdio MCP entrypoint（Node 直接執行 TypeScript）。
+- `tsconfig.json`：前端嚴格型別；`tsconfig.node.json`：MCP/scripts/tests Node 層 typecheck。
 
 ## 儲存格式
 

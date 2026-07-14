@@ -6,6 +6,10 @@ param(
 $ErrorActionPreference = "Stop"
 $Source = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $TargetVersion = (Get-Content (Join-Path $Source '.codex-plugin\plugin.json') -Raw | ConvertFrom-Json).version
+$featureOutput = (codex features list 2>&1 | Out-String) -replace "$([char]27)\[[0-9;]*[A-Za-z]", ''
+if ($featureOutput -notmatch '(?m)^\s*enable_mcp_apps\s+.*\s+true\s*$') {
+  throw "Codex MCP Apps renderer is disabled. Run 'codex features enable enable_mcp_apps', fully restart Codex Desktop, then rerun this installer."
+}
 Push-Location $Source
 try {
   npm install --registry=https://registry.npmjs.org

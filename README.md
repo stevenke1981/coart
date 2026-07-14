@@ -17,8 +17,8 @@ Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布
 - 多選形狀匯出成標註截圖，再交給 Codex 進行修改。
 - HTML Slides 預覽與全螢幕播放。
 - 無 MCP 時使用瀏覽器 localStorage，方便前端開發。
-- 前端使用嚴格 TypeScript/TSX；MCP server 維持可直接執行的 `.mjs` entrypoint。
-- Widget 以 gzip + base64 自包含 loader 傳輸，並以 Chromium smoke 驗證實際掛載。
+- 前端與 MCP/scripts/tests 全面使用 TypeScript；Node 22.6+ 直接執行 `.ts` entrypoint。
+- Widget 以自包含 inline HTML 傳輸，並以 Chromium smoke 驗證實際掛載。
 
 ## 從 GitHub 安裝到 Codex / ChatGPT desktop
 
@@ -60,7 +60,7 @@ npm run dev
 
 本機開發不依賴 MCP；畫布會保存到瀏覽器 localStorage。原生 Widget 模式才會保存到目前專案的 `canvas/`。
 
-Node.js 22.6+ 可直接執行測試內的 TypeScript prompt 匯入；正式 MCP entrypoint 不需要額外 TypeScript runtime。
+Node.js 22.6+ 以 type stripping 直接執行 MCP entrypoint、tests 與 probe scripts（`scripts/start-mcp.ts` 等），不需額外 TypeScript runtime 編譯步驟。
 
 ## Widget HTML 大小與自包含載入
 

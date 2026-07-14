@@ -27,7 +27,10 @@ export type CoartHtmlShapeProps = {
   assetUrl: string
 }
 
-export type CoartHtmlShape = TLShape<'coart-html'>
+export type CoartHtmlShape = TLShape & {
+  type: 'coart-html'
+  props: CoartHtmlShapeProps
+}
 
 export interface AspectPreset {
   id: string

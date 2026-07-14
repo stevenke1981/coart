@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -12,14 +13,39 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const manifest = JSON.parse(readFileSync(join(root, '.codex-plugin', 'plugin.json'), 'utf8'))
 export const LEGACY_WIDGET_URIS = ['ui://widget/coart/canvas.html']
 export const WIDGET_URI = `ui://widget/coart/canvas-v${manifest.version.replaceAll('.', '-')}.html`
-export const WIDGET_BUILD_DIR = join(tmpdir(), `coart-widget-${manifest.version}`)
-export const WIDGET_HTML_GUARD_BYTES = 4 * 1024 * 1024
-let cachedHtml = null
-let cachedAppsBundle = null
 
-function run(command, args, options = {}) {
-  return new Promise((resolvePromise, reject) => {
-    const output = []
+function widgetSourceStamp() {
+  const files: string[] = [
+    join(root, 'index.html'),
+    join(root, 'vite.config.ts'),
+    join(root, 'package.json')
+  ]
+  const walk = (directory: string) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else files.push(path)
+    }
+  }
+  walk(join(root, 'src'))
+  const hash = createHash('sha256')
+  for (const file of files) {
+    hash.update(file.slice(root.length))
+    hash.update(readFileSync(file))
+  }
+  return hash.digest('hex').slice(0, 12)
+}
+
+// Include the source fingerprint so a same-version local reinstall cannot
+// accidentally reuse an older bundle left in the shared temporary directory.
+export const WIDGET_BUILD_DIR = join(tmpdir(), `coart-widget-${manifest.version}-${widgetSourceStamp()}`)
+export const WIDGET_HTML_GUARD_BYTES = 4 * 1024 * 1024
+let cachedHtml: string | null = null
+let cachedAppsBundle: string | null = null
+
+function run(command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv; label?: string } = {}): Promise<void> {
+  return new Promise<void>((resolvePromise, reject) => {
+    const output: string[] = []
     const child = spawn(command, args, {
       cwd: options.cwd || root,
       env: { ...process.env, ...(options.env || {}), BROWSER: 'none', FORCE_COLOR: '0' },
@@ -153,7 +179,7 @@ function bridgeScript() {
   })();`
 }
 
-export function decodeWidgetHtml(source) {
+export function decodeWidgetHtml(source: string) {
   return source
 }
 
@@ -179,7 +205,7 @@ export async function widgetHtml() {
   return cachedHtml
 }
 
-export function registerCoartWidgetResource(server) {
+export function registerCoartWidgetResource(server: any) {
   const metadata = {
     ui: { prefersBorder: false, csp: { connectDomains: [], resourceDomains: ['data:', 'blob:'], frameDomains: ['data:', 'blob:'] } },
     'openai/widgetDescription': 'Coart native infinite canvas',
@@ -195,14 +221,18 @@ export function registerCoartWidgetResource(server) {
   }
 }
 
-async function replaceAsync(source, pattern, replacer) {
+async function replaceAsync(
+  source: string,
+  pattern: RegExp,
+  replacer: (...args: string[]) => Promise<string>
+) {
   const matches = Array.from(source.matchAll(pattern))
   let output = ''
   let cursor = 0
   for (const match of matches) {
     output += source.slice(cursor, match.index)
-    output += await replacer(...match)
-    cursor = match.index + match[0].length
+    output += await replacer(...(match as unknown as string[]))
+    cursor = (match.index ?? 0) + match[0].length
   }
   return output + source.slice(cursor)
 }

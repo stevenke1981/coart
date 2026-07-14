@@ -1,6 +1,6 @@
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import { createCoartServer } from '../mcp/server.mjs'
+import { createCoartServer } from '../mcp/server.ts'
 
 const host = process.env.COART_HTTP_HOST || '127.0.0.1'
 const port = Number.parseInt(process.env.COART_HTTP_PORT || '8787', 10)

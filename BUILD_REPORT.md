@@ -37,7 +37,7 @@
 - MCP widget 的第一個 `</head>` 可能是 tldraw 內嵌字串，不可用第一個 match 注入；改為外層最後一個 `</head>`。
 - Vite 將主 bundle 放在 `<head>` 時，改以 inline module timing，確保 `#root` 建立後才掛載 React。
 - 原先約 6 MB HTML 直接傳送會觸發 ChatGPT/Codex host 大小錯誤；改為 browser-native `DecompressionStream('gzip')` loader，並裁掉重複的 tldraw locale 資產，傳輸 envelope 降至約 2.81 MB。
-- 前端已完成 `.tsx/.ts` 遷移，補上 bridge、MCP result、storage、prompt 與 tldraw custom shape 型別；MCP server 仍保留 `.mjs` 以維持 plugin entrypoint。
+- 前端與 MCP/scripts/tests 已完成 `.tsx/.ts` 遷移；plugin entrypoint 為 `scripts/start-mcp.ts`，由 Node 22.6+ 直接執行。
 
 ## 尚未完成的驗證
 

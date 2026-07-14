@@ -7,10 +7,16 @@ import { generateKeyBetween } from 'fractional-indexing'
 const ASSET_ROUTE = '/assets/'
 const STORAGE_SCHEMA_VERSION = 2
 
-export { isSafeChildPath, nonEmptyString, parseDataUrl, resolveCoartPaths, sanitizeFileName } from './safety.mjs'
-import { isSafeChildPath, nonEmptyString, parseDataUrl, resolveCoartPaths, sanitizeFileName } from './safety.mjs'
+type AnyRecord = Record<string, any>
 
-function extensionForMime(mimeType) {
+function storeRecords(store: any): AnyRecord[] {
+  return Object.values(store || {}) as AnyRecord[]
+}
+
+export { isSafeChildPath, nonEmptyString, parseDataUrl, resolveCoartPaths, sanitizeFileName } from './safety.ts'
+import { isSafeChildPath, nonEmptyString, parseDataUrl, resolveCoartPaths, sanitizeFileName } from './safety.ts'
+
+function extensionForMime(mimeType: string) {
   return ({
     'image/png': '.png',
     'image/jpeg': '.jpg',
@@ -21,7 +27,7 @@ function extensionForMime(mimeType) {
   })[mimeType] || '.bin'
 }
 
-function mimeForFile(fileName) {
+function mimeForFile(fileName: string) {
   return ({
     '.png': 'image/png',
     '.jpg': 'image/jpeg',
@@ -34,7 +40,7 @@ function mimeForFile(fileName) {
   })[extname(fileName).toLowerCase()] || 'application/octet-stream'
 }
 
-async function exists(filePath) {
+async function exists(filePath: string) {
   try {
     return (await stat(filePath)).isFile()
   } catch (error) {
@@ -43,14 +49,14 @@ async function exists(filePath) {
   }
 }
 
-async function atomicWriteJson(filePath, value) {
+async function atomicWriteJson(filePath: string, value: unknown) {
   await mkdir(dirname(filePath), { recursive: true })
   const temp = `${filePath}.${process.pid}.${randomUUID()}.tmp`
   await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
   await rename(temp, filePath)
 }
 
-async function readJson(filePath, fallback = null) {
+async function readJson(filePath: string, fallback: any = null): Promise<any> {
   try {
     return JSON.parse(await readFile(filePath, 'utf8'))
   } catch (error) {
@@ -59,15 +65,15 @@ async function readJson(filePath, fallback = null) {
   }
 }
 
-function sha256(value) {
+function sha256(value: string | Buffer) {
   return createHash('sha256').update(value).digest('hex')
 }
 
-function pageFileName(pageId, snapshotId) {
+function pageFileName(pageId: string, snapshotId: string) {
   return `page-${sha256(String(pageId)).slice(0, 12)}-${snapshotId}.json`
 }
 
-async function uniqueAssetPath(assetsDir, requestedName) {
+async function uniqueAssetPath(assetsDir: string, requestedName: string) {
   const safe = sanitizeFileName(requestedName)
   const extension = extname(safe)
   const stem = safe.slice(0, -extension.length)
@@ -80,17 +86,17 @@ async function uniqueAssetPath(assetsDir, requestedName) {
   return { fileName: candidate, filePath: join(assetsDir, candidate) }
 }
 
-function clone(value) {
+function clone(value: any): any {
   return value == null ? value : structuredClone(value)
 }
 
-function ensureSnapshot(snapshot) {
+function ensureSnapshot(snapshot: any): asserts snapshot is { schema: any; store: Record<string, AnyRecord> } {
   if (!snapshot || typeof snapshot !== 'object' || !snapshot.schema || !snapshot.store) {
     throw new Error('Invalid tldraw snapshot: schema and store are required.')
   }
 }
 
-function pageForRecord(store, record) {
+function pageForRecord(store: Record<string, AnyRecord>, record: AnyRecord) {
   if (record?.typeName === 'page') return record.id
   let current = record?.typeName === 'shape' ? record : null
   if (record?.typeName === 'binding') {
@@ -105,15 +111,15 @@ function pageForRecord(store, record) {
   return null
 }
 
-function splitSnapshot(snapshot) {
+function splitSnapshot(snapshot: any) {
   ensureSnapshot(snapshot)
   const pageStores = new Map()
   const sharedStore = {}
 
-  for (const record of Object.values(snapshot.store)) {
+  for (const record of storeRecords(snapshot.store)) {
     if (record?.typeName === 'page') pageStores.set(record.id, { [record.id]: record })
   }
-  for (const record of Object.values(snapshot.store)) {
+  for (const record of storeRecords(snapshot.store)) {
     if (record?.typeName === 'page') continue
     const pageId = pageForRecord(snapshot.store, record)
     if (pageId && pageStores.has(pageId)) pageStores.get(pageId)[record.id] = record
@@ -123,14 +129,14 @@ function splitSnapshot(snapshot) {
   return { sharedStore, pageStores }
 }
 
-function referencedAssetUrls(snapshot) {
+function referencedAssetUrls(snapshot: any) {
   const references = new Map()
-  const add = (assetUrl, recordId) => {
+  const add = (assetUrl: unknown, recordId: string) => {
     if (typeof assetUrl !== 'string' || !assetUrl.startsWith(ASSET_ROUTE)) return
     if (!references.has(assetUrl)) references.set(assetUrl, new Set())
     references.get(assetUrl).add(recordId)
   }
-  for (const record of Object.values(snapshot.store)) {
+  for (const record of storeRecords(snapshot.store)) {
     if (record?.typeName === 'asset' && record.type === 'image') add(record.props?.src, record.id)
     if (record?.typeName === 'shape' && record.type === 'coart-html') {
       add(nonEmptyString(record.meta?.coartAssetUrl) || nonEmptyString(record.props?.assetUrl), record.id)
@@ -139,7 +145,7 @@ function referencedAssetUrls(snapshot) {
   return references
 }
 
-async function buildAssetManifest(args, snapshot) {
+async function buildAssetManifest(args: any, snapshot: any) {
   const { assetsDir } = resolveCoartPaths(args)
   let entries = []
   try {
@@ -168,7 +174,7 @@ async function buildAssetManifest(args, snapshot) {
   return assets.sort((left, right) => left.url.localeCompare(right.url))
 }
 
-async function readSnapshotFromManifest(paths, manifest) {
+async function readSnapshotFromManifest(paths: AnyRecord, manifest: any) {
   if (manifest?.schemaVersion !== STORAGE_SCHEMA_VERSION || !Array.isArray(manifest.pages)) {
     throw new Error(`Unsupported Coart storage manifest version: ${manifest?.schemaVersion ?? 'missing'}.`)
   }
@@ -196,7 +202,7 @@ async function readSnapshotFromManifest(paths, manifest) {
   return snapshot
 }
 
-async function readStoredSnapshot(paths) {
+async function readStoredSnapshot(paths: AnyRecord) {
   const manifest = await readJson(paths.manifestFile)
   if (!manifest) {
     const legacy = await readJson(paths.canvasFile)
@@ -230,7 +236,7 @@ async function readStoredSnapshot(paths) {
   }
 }
 
-function assetPathFromUrl(args, assetUrl) {
+function assetPathFromUrl(args: any, assetUrl: string) {
   if (!assetUrl?.startsWith(ASSET_ROUTE)) throw new Error('Only /assets/... URLs are allowed.')
   const { assetsDir } = resolveCoartPaths(args)
   const filePath = resolve(assetsDir, decodeURIComponent(assetUrl.slice(ASSET_ROUTE.length)))
@@ -238,13 +244,13 @@ function assetPathFromUrl(args, assetUrl) {
   return filePath
 }
 
-async function localizeSnapshot(args, inputSnapshot) {
+async function localizeSnapshot(args: any, inputSnapshot: any) {
   ensureSnapshot(inputSnapshot)
   const snapshot = clone(inputSnapshot)
   const { assetsDir } = resolveCoartPaths(args)
   await mkdir(assetsDir, { recursive: true })
 
-  for (const record of Object.values(snapshot.store)) {
+  for (const record of storeRecords(snapshot.store)) {
     if (record?.typeName === 'asset' && record.type === 'image') {
       const src = record.props?.src
       if (typeof src !== 'string' || !src.startsWith('data:')) continue
@@ -299,12 +305,12 @@ async function localizeSnapshot(args, inputSnapshot) {
   return snapshot
 }
 
-async function hydrateSnapshot(args, inputSnapshot) {
+async function hydrateSnapshot(args: any, inputSnapshot: any) {
   if (!inputSnapshot) return null
   ensureSnapshot(inputSnapshot)
   const snapshot = clone(inputSnapshot)
 
-  for (const record of Object.values(snapshot.store)) {
+  for (const record of storeRecords(snapshot.store)) {
     if (record?.typeName === 'asset' && record.type === 'image') {
       const src = record.props?.src
       if (typeof src !== 'string' || !src.startsWith(ASSET_ROUTE)) continue
@@ -323,7 +329,7 @@ async function hydrateSnapshot(args, inputSnapshot) {
   return snapshot
 }
 
-export async function readCanvasState(args = {}, { hydrateAssets = false } = {}) {
+export async function readCanvasState(args: any = {}, { hydrateAssets = false }: { hydrateAssets?: boolean } = {}) {
   const paths = resolveCoartPaths(args)
   const [stored, selection, viewState] = await Promise.all([
     readStoredSnapshot(paths),
@@ -344,7 +350,7 @@ export async function readCanvasState(args = {}, { hydrateAssets = false } = {})
   }
 }
 
-export async function saveCanvasSnapshot(args = {}, snapshot) {
+export async function saveCanvasSnapshot(args: any = {}, snapshot?: any) {
   const paths = resolveCoartPaths(args)
   const localized = await localizeSnapshot(args, snapshot)
   const { sharedStore, pageStores } = splitSnapshot(localized)
@@ -392,26 +398,26 @@ export async function saveCanvasSnapshot(args = {}, snapshot) {
   }
 }
 
-export async function writeSelection(args = {}, selection) {
+export async function writeSelection(args: any = {}, selection?: any) {
   const paths = resolveCoartPaths(args)
   await mkdir(paths.canvasDir, { recursive: true })
   await atomicWriteJson(paths.selectionFile, selection || { version: 1, selectedShapeIds: [], selectedShapes: [] })
   return { ok: true, path: paths.selectionFile }
 }
 
-export async function readSelection(args = {}) {
+export async function readSelection(args: any = {}) {
   const paths = resolveCoartPaths(args)
   return { selection: await readJson(paths.selectionFile, { version: 1, selectedShapeIds: [], selectedShapes: [] }), path: paths.selectionFile }
 }
 
-export async function writeViewState(args = {}, viewState) {
+export async function writeViewState(args: any = {}, viewState?: any) {
   const paths = resolveCoartPaths(args)
   await mkdir(paths.canvasDir, { recursive: true })
   await atomicWriteJson(paths.viewFile, viewState || { version: 1, currentPageId: null, camera: { x: 0, y: 0, z: 1 } })
   return { ok: true, path: paths.viewFile }
 }
 
-export async function writeAsset(args = {}, { fileName, dataUrl, dataBase64, mimeType = 'application/octet-stream' }) {
+export async function writeAsset(args: any = {}, { fileName, dataUrl, dataBase64, mimeType = 'application/octet-stream' }: any = {}) {
   const paths = resolveCoartPaths(args)
   await mkdir(paths.assetsDir, { recursive: true })
   let buffer
@@ -437,7 +443,7 @@ export async function writeAsset(args = {}, { fileName, dataUrl, dataBase64, mim
   }
 }
 
-export async function readAsset(args = {}, assetUrl) {
+export async function readAsset(args: any = {}, assetUrl: string) {
   const filePath = assetPathFromUrl(args, assetUrl)
   const buffer = await readFile(filePath)
   return {
@@ -450,13 +456,13 @@ export async function readAsset(args = {}, assetUrl) {
   }
 }
 
-function firstSelectedShapeId(selection) {
+function firstSelectedShapeId(selection: any) {
   if (Array.isArray(selection?.selectedShapeIds) && selection.selectedShapeIds.length === 1) return selection.selectedShapeIds[0]
   if (Array.isArray(selection?.selectedShapes) && selection.selectedShapes.length === 1) return selection.selectedShapes[0]?.id
   return null
 }
 
-function findPageId(store, shape) {
+function findPageId(store: Record<string, AnyRecord>, shape: AnyRecord | undefined) {
   let current = shape
   const seen = new Set()
   while (current && !seen.has(current.id)) {
@@ -467,18 +473,18 @@ function findPageId(store, shape) {
   return null
 }
 
-function pageIdFromState(store, selection, viewState, explicitPageId) {
+function pageIdFromState(store: Record<string, AnyRecord>, selection: any, viewState: any, explicitPageId: any) {
   if (explicitPageId && store[explicitPageId]) return explicitPageId
   const selected = store[firstSelectedShapeId(selection)]
-  return findPageId(store, selected) || viewState?.currentPageId || Object.values(store).find((item) => item?.typeName === 'page')?.id
+  return findPageId(store, selected) || viewState?.currentPageId || storeRecords(store).find((item) => item?.typeName === 'page')?.id
 }
 
-function descendants(store, parentId) {
-  const result = []
-  const queue = [parentId]
+function descendants(store: Record<string, AnyRecord>, parentId: string) {
+  const result: string[] = []
+  const queue: string[] = [parentId]
   while (queue.length) {
     const id = queue.shift()
-    for (const record of Object.values(store)) {
+    for (const record of storeRecords(store)) {
       if (record?.typeName === 'shape' && record.parentId === id) {
         result.push(record.id)
         queue.push(record.id)
@@ -488,19 +494,19 @@ function descendants(store, parentId) {
   return result
 }
 
-function nextIndex(store, parentId) {
-  const indexes = Object.values(store)
+function nextIndex(store: Record<string, AnyRecord>, parentId: string) {
+  const indexes = storeRecords(store)
     .filter((record) => record?.typeName === 'shape' && record.parentId === parentId && typeof record.index === 'string')
-    .map((record) => record.index)
+    .map((record) => record.index as string)
     .sort()
   return generateKeyBetween(indexes.at(-1) || null, null)
 }
 
-function recordId(prefix) {
+function recordId(prefix: string) {
   return `${prefix}:${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`
 }
 
-async function imageDimensions(filePath) {
+async function imageDimensions(filePath: string) {
   const buffer = await readFile(filePath)
   if (buffer.length >= 24 && buffer.toString('ascii', 1, 4) === 'PNG') {
     return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) }
@@ -525,7 +531,7 @@ async function imageDimensions(filePath) {
   throw new Error('Only PNG, JPEG, and extended WebP dimensions are supported. Pass a compatible image.')
 }
 
-export async function insertImage(args = {}) {
+export async function insertImage(args: any = {}) {
   const imagePath = resolve(nonEmptyString(args.imagePath) || '')
   if (!imagePath || !(await exists(imagePath))) throw new Error('imagePath must reference an existing image file.')
   const mimeType = mimeForFile(imagePath)
@@ -613,7 +619,7 @@ export async function insertImage(args = {}) {
   return { ok: true, pageId, anchorShapeId: anchorId, shapeId, assetId, assetPath: target.filePath, assetUrl, bounds: { x, y, w: width, h: height }, replacedHolder: replaceHolder }
 }
 
-export async function insertHtml(args = {}) {
+export async function insertHtml(args: any = {}) {
   const htmlContent = nonEmptyString(args.htmlContent)
     || (nonEmptyString(args.htmlPath) ? await readFile(resolve(args.htmlPath), 'utf8') : null)
   if (!htmlContent) throw new Error('htmlContent or htmlPath is required.')
@@ -648,7 +654,7 @@ export async function insertHtml(args = {}) {
 
   if (slidesShape?.meta?.coartKind === 'slides') {
     parentId = slidesShape.id
-    const existingSlides = Object.values(store)
+    const existingSlides = storeRecords(store)
       .filter((record) => record?.typeName === 'shape' && record.parentId === slidesShape.id && record.type === 'coart-html')
       .sort((a, b) => String(a.index).localeCompare(String(b.index)))
     x = 12 + existingSlides.length * (1024 + 32)
@@ -704,7 +710,7 @@ export async function insertHtml(args = {}) {
   return { ok: true, pageId, shapeId, assetPath: target.filePath, assetUrl, parentId, replacedHolder: replaceHolder, slidesShapeId: slidesShapeId || null }
 }
 
-export async function downloadFile(args = {}) {
+export async function downloadFile(args: any = {}) {
   let buffer
   let mimeType = nonEmptyString(args.mimeType) || 'application/octet-stream'
   if (args.assetUrl) {

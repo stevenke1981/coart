@@ -33,9 +33,14 @@
 - [x] 移除 recurring height pulse 與固定 720px size override；改由 MCP Apps SDK 的 `autoResize` 依文件實際尺寸回報，讓 Codex 在切換／還原對話後重新定位 detached webview。
 - [x] tldraw 自包含資產由 16 個字型縮為 4 個，移除未使用的 provider icon payload，Widget HTML 由約 4.36 MB 降至約 2.86 MB。
 - [x] Windows 本機安裝腳本加入 `-ForceReinstall` 與版本不符自動升級，可更新既有安裝快取至目前 manifest 版本。
+- [x] Codex Desktop MCP Apps renderer gate 診斷：`enable_mcp_apps` 未啟用時，MCP/resource/Chrome probe 仍會成功但 Desktop 只顯示 JSON；已在本機啟用並補進 open-canvas skill。
+- [x] 修正 inline iframe 初始高度 0 造成的 SDK `autoResize` 零高度回授：根節點與 tldraw 直接容器保留 intrinsic floor，並以 host harness 驗證 15 秒內 canvas 高度維持 640px。
+- [x] Widget build 暫存路徑加入 source fingerprint，避免同一個 v0.2.7 版本重用舊 `%TEMP%` bundle。
+- [x] 完整退出並重開 Codex Desktop、開新 task，驗證 `canvas-v0-2-7` 至少 16 秒持續可見，且沒有 `Transport closed` 或 host error。
 
 ## 下一版（v0.2）
 
+- [x] 安裝 preflight 檢查 `codex features list` 的 `enable_mcp_apps`，在宿主旗標關閉時顯示可操作錯誤與重啟提示。
 - [ ] page asset lazy loading
 - [ ] HTML DOM 文字編輯器
 - [ ] 圖片 slide 與混合 deck
@@ -57,4 +62,4 @@
 
 - [x] `window.coartMcp`、`window.openai`、MCP results、storage records 與 custom shape props 型別
 - [x] React UI、prompt、client、data URL 與 autosave hook 轉為 `.ts/.tsx`
-- [ ] 評估 MCP/storage `.mjs` 的 TypeScript 編譯流程（目前保留 `.mjs`，避免改變 plugin entrypoint）
+- [x] MCP/storage/scripts/tests 全面改為 `.ts`；Node 22.6+ 直接執行（type stripping），`tsconfig.node.json` 負責 Node 層 typecheck；plugin entrypoint 改為 `scripts/start-mcp.ts`

@@ -28,7 +28,7 @@
 ## 2026-07-14 MCP Apps lifecycle hotfix
 
 - 在 `app.connect()` 前註冊 `app.onteardown`，讓 Codex 切換對話送出的 `ui/resource-teardown` 得到合法回應，避免 Widget 被宿主留在白色空頁。
-- `scripts/probe-widget-loader.mjs` 會檢查生成的 Widget bridge 包含 teardown handler。
+- `scripts/probe-widget-loader.ts` 會檢查生成的 Widget bridge 包含 teardown handler。
 
 ## 2026-07-14 v0.2.7 對話切換後消失修正
 
@@ -49,7 +49,7 @@
 ## 2026-07-14 tldraw icon sprite 修正
 
 - Widget build 會以本機 SVG source 解析每個 icon，為每個圖示建立不含 fragment 的單一 SVG `blob:` URL；這符合 tldraw 使用 CSS mask 的資產方式，也避開 MCP `data:` 文件的 fragment URL 被瀏覽器拒絕。
-- `scripts/probe-mcp.mjs` 會驗證 Widget bundle 包含 DOMParser、`createObjectURL` 與 SVG MIME path；`scripts/probe-widget-loader.mjs` 另外在 Headless Chrome 確認 tldraw icon 實際取得 CSS mask URL，不需載入外部 icon 資源。
+- `scripts/probe-mcp.ts` 會驗證 Widget bundle 包含 DOMParser、`createObjectURL` 與 SVG MIME path；`scripts/probe-widget-loader.ts` 另外在 Headless Chrome 確認 tldraw icon 實際取得 CSS mask URL，不需載入外部 icon 資源。
 
 ## 2026-07-14 Codex Desktop host 相容邊界
 
@@ -68,7 +68,7 @@
 - Widget 注入固定使用外層最後一個 `</head>`，主 bundle 使用 inline module timing，並以 single-bundle build 消除 `ui://` 資源無法追載的 lazy chunk。
 - Headless Chromium smoke 已確認直接 HTML 實際掛載 `.coart-app`、tldraw container；Windows 在最後一次 host 驗收時拒絕桌面擷取（Win32 error 5），因此以 Codex host log、tool call continuity 與 headless 像素渲染交叉驗證，未把 `PrintWindow`（無法擷取 detached webview surface）的灰色 placeholder 當成失敗證據。
 - `codex review --uncommitted` 對 53-file 初始 repo 的全量 review 在 184 秒逾時，未產生可用報告；改採針對 storage/manifest 提交協定的人工審查，並修正內容世代原子性與損壞 fallback 依賴問題。
-- TypeScript 目前採前端完整遷移、MCP `.mjs` 保留的邊界：前端可由 `tsc --noEmit` 嚴格檢查；MCP 入口仍由 Node 直接執行，避免 plugin entrypoint 引入額外 runtime。
+- TypeScript 已涵蓋前端與 MCP/scripts/tests；前端 `tsc --noEmit` 嚴格檢查，Node 層由 `tsconfig.node.json` 檢查，MCP 入口由 Node type stripping 直接執行 `.ts`。
 - 目前已開啟的舊 Widget 實例仍可能持有舊版 bundle 與 timer；bridge 重啟不會清掉已在 Codex renderer 中執行的舊 JavaScript，需關閉／重新載入舊 task 或完整重啟 Codex 才能回收。
 
 ## 已完成驗證
@@ -82,10 +82,30 @@
 - `npm run probe:http`：Streamable HTTP `/mcp` 與 11 個 tools 通過。
 - `npm run probe:widget`：Chrome headless 實際掛載 React/tldraw，並確認 tldraw icons，`mounted: true`, `iconsMasked: true`。
 - v0.2.7 widget smoke：Chrome 在 15 秒 virtual-time interval 後輸出 26,817-byte PNG，實際畫面包含完整 tldraw canvas、工具列與色彩面板；probe 會驗證 screenshot 已生成。
-- v0.2.7 Codex Desktop：重新安裝 plugin、開新 task 後載入 `ui://widget/coart/canvas-v0-2-7.html`；inline render 持續可見 10.5 秒，該 task 的 resource read 與 MCP tool calls 都成功，未觀測到 host error。
+- v0.2.7 Codex Desktop：完整退出並重開後，`render_coart_canvas(projectDir: D:\\coart, displayMode: inline)` 已載入 fingerprint build；Widget 維持超過 16 秒，resource URI 為 `ui://widget/coart/canvas-v0-2-7.html`。
+- 目前機器的再現診斷：Codex Desktop `26.707.9981`／CLI `0.144.3` 的 `apps` 為 `true`，但 `enable_mcp_apps` 原本是 `under development / false`；這會造成 MCP tool 成功、resource probe 成功，卻不呼叫 `read-mcp-resource`、只顯示 JSON。已執行 `codex features enable enable_mcp_apps`，完整重啟 Desktop 後才能在同一宿主進行最終 inline 驗證。
+- `scripts/install-local.ps1` 現在會在安裝前檢查 `enable_mcp_apps`，避免日後出現「安裝成功但只看到 JSON」的假成功；關閉時會直接給出啟用與重啟指令。
 - hydration hotfix：直接讀取 `readCanvasState(..., { hydrateAssets: true })` 確認 image asset 會回傳 data URL，且 snapshot 保留 image shape。
 - 10 秒 host harness：以 MCP Apps message bridge 載入 Widget，實際等待 10 秒後 `coart: true`、`tldraw: true`、`toolbar: true`、`loader: false`，page error 為 0，並輸出像素截圖。
 - Codex 安裝快取：`coart@coart-public` v0.2.7 已以 `-ForceReinstall` 更新；快取內 `probe:mcp` 通過，manifest、Widget bridge、MCP probe 與 widget smoke script 均與來源 SHA-256 一致。
+
+## 2026-07-14 inline Widget 零高度回授修正
+
+- 以 MCP Apps message bridge 建立初始 iframe 高度為 0 的宿主 harness，重現了「先出現、再消失」：舊 CSS 讓 SDK 第一次回報 `height: 0`，宿主照協定把 iframe 設為 0，形成零高度回授。
+- 修正 `src/styles.css`：`html`、`body`、`#root`、`.coart-app` 與 tldraw 直接子層 `.coart-app > .tl-container` 保留 640px intrinsic floor，讓 tldraw 的 `height: 100%` 有可解析的非零高度；沒有加入固定 720px override、手動 size notification 或 recurring timer。
+- 修正 `mcp/lib/widget.ts`：Widget build 暫存路徑加入 `src`／build input fingerprint，避免同一個 `0.2.7` 版本沿用舊 `%TEMP%\coart-widget-0.2.7` bundle。
+- `npm run quality` 已通過：check、typecheck、11/11 tests、build、MCP probe、HTTP probe、Chromium widget probe；host harness 於 15 秒內量到 `html/body/root/app/tldraw/canvas = 640px`，bridge error 為空，父 iframe 維持 640px。
+- 實機 host 交叉檢查：`staticDir` 為 `...\coart-widget-0.2.7-3c9c513a6c14`；重開後近期實際 MCP/host log targets 的 556 筆紀錄中，`Transport closed`、`host error`、`resource-teardown`、renderer error 與 ResizeObserver error 均為 0。畫布 surface 在本次 16 秒觀察窗內維持於目前 inline task。
+
+## 2026-07-14 全專案 TypeScript 遷移
+
+- 將剩餘 JavaScript 全面改為 TypeScript：`mcp/**`、`scripts/**`、`tests/**`、`vite.config.ts`。
+- Plugin entrypoint 由 `scripts/start-mcp.mjs` 改為 `scripts/start-mcp.ts`（`.mcp.json` 同步更新）。
+- 新增 `tsconfig.node.json` 負責 Node 層 typecheck；前端維持 `tsconfig.json` 嚴格模式。
+- `npm run check` 改為 `tsc -p tsconfig.node.json --noEmit`（Node 的 `node --check` 無法檢查 `.ts` 語法）。
+- 執行模型：Node 22.6+ type stripping 直接執行 `.ts`，不引入 tsc emit 或額外 runtime 依賴。
+- 已安裝 `@types/node`；MCP storage 以動態 tldraw JSON 邊界（`any` / `AnyRecord`）維持既有行為，未重寫業務邏輯。
+- 驗證：`npm run check`、`npm run typecheck`、`npm test`（11/11）、`npm run build`、`probe:mcp`、`probe:http`、`probe:widget` 均通過。
 
 ## 建議第一個 Codex 實機驗證
 

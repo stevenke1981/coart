@@ -8,7 +8,7 @@ import {
   readCanvasState,
   resolveCoartPaths,
   saveCanvasSnapshot
-} from '../mcp/lib/storage.mjs'
+} from '../mcp/lib/storage.ts'
 
 function snapshot() {
   return {

@@ -5,11 +5,20 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+/*
+ * MCP Apps hosts may create an inline iframe with height: 0 before the first
+ * size-changed notification. A percentage-only height then measures as zero,
+ * so the host faithfully applies zero and the canvas disappears. Keep a
+ * small intrinsic floor while letting the SDK autoResize report later changes.
+ */
+html, body { width: 100%; min-height: 640px; margin: 0; overflow: hidden; }
+#root { width: 100%; min-height: 640px; margin: 0; overflow: hidden; }
 button, textarea, input, select { font: inherit; }
 button { cursor: pointer; }
 
-.coart-app { width: 100%; height: 100%; position: relative; }
+.coart-app { width: 100%; min-height: 640px; position: relative; }
+/* tldraw's own container uses height: 100%; make that percentage definite. */
+.coart-app > .tl-container { min-height: 640px; }
 
 .coart-toolbar {
   position: absolute;

@@ -5,7 +5,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 const host = '127.0.0.1'
 const port = 18000 + (process.pid % 10000)
 const baseUrl = `http://${host}:${port}`
-const child = spawn(process.execPath, ['scripts/start-http.mjs'], {
+const child = spawn(process.execPath, ['scripts/start-http.ts'], {
   cwd: process.cwd(),
   env: { ...process.env, COART_HTTP_HOST: host, COART_HTTP_PORT: String(port) },
   stdio: ['ignore', 'pipe', 'pipe']

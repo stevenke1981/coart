@@ -8,7 +8,7 @@ import {
   parseDataUrl,
   resolveCoartPaths,
   sanitizeFileName
-} from '../mcp/lib/safety.mjs'
+} from '../mcp/lib/safety.ts'
 
 test('resolveCoartPaths defaults canvas under project', async () => {
   const projectDir = await mkdtemp(join(tmpdir(), 'coart-test-'))

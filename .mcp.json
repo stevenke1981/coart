@@ -4,7 +4,7 @@
       "title": "Coart Canvas Widget MCP",
       "description": "Render and persist the native Coart infinite canvas in the active project.",
       "command": "node",
-      "args": ["./scripts/start-mcp.mjs"],
+      "args": ["./scripts/start-mcp.ts"],
       "cwd": "."
     }
   }

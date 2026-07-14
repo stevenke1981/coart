@@ -4,7 +4,8 @@ import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import http from 'node:http'
-import { widgetHtml } from '../mcp/lib/widget.mjs'
+import type { AddressInfo } from 'node:net'
+import { widgetHtml } from '../mcp/lib/widget.ts'
 
 function browserCandidates() {
   const configured = process.env.COART_CHROME || process.env.CHROME_PATH
@@ -19,7 +20,7 @@ function browserCandidates() {
   return [...new Set([configured, ...windows].filter(Boolean))]
 }
 
-function runBrowser(executable, url, userDataDir, screenshotPath) {
+function runBrowser(executable: string, url: string, userDataDir: string, screenshotPath: string): Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, [
       '--headless=new',
@@ -67,8 +68,10 @@ if (!executable) {
   const userDataDir = await mkdtemp(join(tmpdir(), 'coart-widget-smoke-'))
   const screenshotPath = process.env.COART_WIDGET_SCREENSHOT || join(userDataDir, 'widget-after-10s.png')
   try {
-    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-    const { port } = server.address()
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve())
+    })
+    const { port } = server.address() as AddressInfo
     const result = await runBrowser(executable, `http://127.0.0.1:${port}/`, userDataDir, screenshotPath)
     if (result.code !== 0) throw new Error(`Browser exited with code ${result.code ?? 'null'}${result.signal ? ` (${result.signal})` : ''}.\n${result.stderr.slice(-2000)}`)
     const { stdout } = result

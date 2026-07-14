@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { decodeWidgetHtml, LEGACY_WIDGET_URIS, WIDGET_HTML_GUARD_BYTES, WIDGET_URI } from '../mcp/lib/widget.mjs'
+import { decodeWidgetHtml, LEGACY_WIDGET_URIS, WIDGET_HTML_GUARD_BYTES, WIDGET_URI } from '../mcp/lib/widget.ts'
 
 const expectedTools = [
   'render_coart_canvas',
@@ -18,7 +18,7 @@ const expectedTools = [
 
 const transport = new StdioClientTransport({
   command: process.execPath,
-  args: ['scripts/start-mcp.mjs'],
+  args: ['scripts/start-mcp.ts'],
   cwd: process.cwd(),
   stderr: 'pipe'
 })
@@ -35,7 +35,7 @@ try {
     if (!toolNames.includes(name)) throw new Error(`Missing MCP tool: ${name}`)
   }
 
-  const rendered = await client.callTool({
+  const rendered: any = await client.callTool({
     name: 'render_coart_canvas',
     arguments: { projectDir: process.cwd() }
   })
@@ -47,7 +47,7 @@ try {
     throw new Error('render_coart_canvas must default to inline mode for Codex Desktop stability.')
   }
 
-  const fullscreenRendered = await client.callTool({
+  const fullscreenRendered: any = await client.callTool({
     name: 'render_coart_canvas',
     arguments: { projectDir: process.cwd(), displayMode: 'fullscreen' }
   })
@@ -69,13 +69,20 @@ try {
   }
 
   const widget = await client.readResource({ uri: WIDGET_URI })
-  const html = widget.contents?.[0]?.text || ''
+  const firstContent = widget.contents?.[0] as { text?: string } | undefined
+  const html = firstContent?.text || ''
   const decodedHtml = decodeWidgetHtml(html)
   if (!decodedHtml.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!/app\.onteardown\s*=/.test(decodedHtml)) throw new Error('Widget bridge teardown handler was not registered.')
   if (!decodedHtml.includes("availableDisplayModes: ['inline']")) throw new Error('Widget must advertise inline-only display support.')
   if (!decodedHtml.includes('{ autoResize: true }') || decodedHtml.includes('notifyHostSize') || decodedHtml.includes('layoutPulseTimer = setInterval')) {
     throw new Error('Widget bridge must delegate intrinsic sizing to the Apps SDK without a fixed-size override or recurring layout pulse.')
+  }
+  if (/html,body(?:,#root)?\{[^}]*height:100%/.test(decodedHtml)
+    || !/html,body(?:,#root)?\{[^}]*min-height:640px/.test(decodedHtml)
+    || !/\.coart-app\{[^}]*min-height:640px/.test(decodedHtml)
+    || !/\.coart-app>\.tl-container\{[^}]*min-height:640px/.test(decodedHtml)) {
+    throw new Error('Widget must keep a non-zero intrinsic height for MCP host autoResize handshakes.')
   }
   if (html.includes('data-coart-loader') || html.includes('DecompressionStream') || html.includes('document.importNode')) {
     throw new Error('Widget unexpectedly contains the legacy runtime document-rewrite loader.')

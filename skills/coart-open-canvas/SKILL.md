@@ -5,6 +5,7 @@ description: Open the native Coart tldraw infinite canvas inside Codex for the a
 
 # Coart Open Canvas
 
+0. Before the first render, check that Codex Desktop's MCP Apps renderer gate is enabled: `codex features list` must show both `apps ... true` and `enable_mcp_apps ... true`. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. Without this gate, MCP calls and resource probes can succeed while Desktop displays only the tool JSON.
 1. Call `render_coart_canvas` with the absolute active user project path as `projectDir`.
 2. Do not pass the Coart plugin source directory unless it is itself the user's target project.
 3. The native widget stores its state under `<projectDir>/canvas`.

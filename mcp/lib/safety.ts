@@ -6,11 +6,11 @@ const SHARED_FILE = 'coart-shared.json'
 const SELECTION_FILE = 'coart-selection.json'
 const VIEW_FILE = 'coart-view-state.json'
 
-export function nonEmptyString(value) {
+export function nonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
-export function resolveCoartPaths(args = {}) {
+export function resolveCoartPaths(args: any = {}) {
   const projectDir = resolve(nonEmptyString(args.projectDir) || process.env.COART_PROJECT_DIR || process.cwd())
   const canvasDir = resolve(nonEmptyString(args.canvasDir) || process.env.COART_CANVAS_DIR || join(projectDir, 'canvas'))
   return {
@@ -26,12 +26,12 @@ export function resolveCoartPaths(args = {}) {
   }
 }
 
-export function isSafeChildPath(parent, child) {
+export function isSafeChildPath(parent: string, child: string) {
   const rel = relative(resolve(parent), resolve(child))
   return rel === '' || (!isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`))
 }
 
-export function sanitizeFileName(value, fallback = 'asset.bin') {
+export function sanitizeFileName(value: unknown, fallback = 'asset.bin') {
   const raw = basename(String(value || fallback))
   const extension = extname(raw) || extname(fallback) || '.bin'
   const stem = raw.slice(0, raw.length - extname(raw).length)
@@ -41,7 +41,7 @@ export function sanitizeFileName(value, fallback = 'asset.bin') {
   return `${stem || 'asset'}${extension.toLowerCase()}`
 }
 
-export function parseDataUrl(dataUrl) {
+export function parseDataUrl(dataUrl: unknown) {
   const match = /^data:([^;,]+)?((?:;[^,]*)?),(.*)$/s.exec(String(dataUrl || ''))
   if (!match) throw new Error('Invalid data URL.')
   const mimeType = match[1] || 'application/octet-stream'
