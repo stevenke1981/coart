@@ -127,11 +127,10 @@ function bridgeScript() {
         app.requestDisplayMode({ mode: payload.preferredDisplayMode }).catch(() => {});
       }
     };
-    const notifyHostSize = () => app?.sendSizeChanged?.({
-      width: Math.max(1, Math.round(window.innerWidth)),
-      height: 720
-    });
-    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline'] }, { autoResize: false });
+    // Let the Apps SDK measure the final document after Codex has attached its
+    // detached widget surface. A one-shot, fixed height can become stale when
+    // the conversation view is restored or its width changes.
+    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline'] }, { autoResize: true });
     // MCP Apps hosts send ui/resource-teardown before unmounting a view, for
     // example when the user switches conversations. Register the handler
     // before connect() so the SDK can answer the lifecycle request cleanly.
@@ -147,7 +146,6 @@ function bridgeScript() {
       install();
       contextChanged(app.getHostContext?.());
       publish({ hostCapabilities: app.getHostCapabilities?.(), hostInfo: app.getHostVersion?.() });
-      notifyHostSize();
     }).catch((error) => {
       globalThis.__COART_BRIDGE_ERROR__ = error;
       throw error;

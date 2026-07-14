@@ -74,8 +74,8 @@ try {
   if (!decodedHtml.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!/app\.onteardown\s*=/.test(decodedHtml)) throw new Error('Widget bridge teardown handler was not registered.')
   if (!decodedHtml.includes("availableDisplayModes: ['inline']")) throw new Error('Widget must advertise inline-only display support.')
-  if (!decodedHtml.includes('sendSizeChanged') || decodedHtml.includes('layoutPulseTimer = setInterval')) {
-    throw new Error('Widget bridge must publish one stable size without a recurring layout pulse.')
+  if (!decodedHtml.includes('{ autoResize: true }') || decodedHtml.includes('notifyHostSize') || decodedHtml.includes('layoutPulseTimer = setInterval')) {
+    throw new Error('Widget bridge must delegate intrinsic sizing to the Apps SDK without a fixed-size override or recurring layout pulse.')
   }
   if (html.includes('data-coart-loader') || html.includes('DecompressionStream') || html.includes('document.importNode')) {
     throw new Error('Widget unexpectedly contains the legacy runtime document-rewrite loader.')

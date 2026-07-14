@@ -1,6 +1,6 @@
 {
   "name": "coart",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "A native Codex infinite-canvas widget for visual ideation, AI images, HTML pages, slides, and annotation-led iteration.",
   "author": {
     "name": "Coart contributors",

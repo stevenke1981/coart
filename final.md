@@ -1,4 +1,4 @@
-# Coart v0.2.6 Reliability Delivery
+# Coart v0.2.7 Reliability Delivery
 
 本交付在獨立 clean-room `coart` 專案上完成 v0.2 儲存與安裝可靠性升級，不依賴 Cowart 原始碼或品牌資產。
 
@@ -30,11 +30,18 @@
 - 在 `app.connect()` 前註冊 `app.onteardown`，讓 Codex 切換對話送出的 `ui/resource-teardown` 得到合法回應，避免 Widget 被宿主留在白色空頁。
 - `scripts/probe-widget-loader.mjs` 會檢查生成的 Widget bridge 包含 teardown handler。
 
+## 2026-07-14 v0.2.7 對話切換後消失修正
+
+- 以 Cowart 公開 repository 的 Widget 行為做 clean-room 對照後，確認 Coart v0.2.6 關閉 MCP Apps SDK 的自動尺寸回報、並在 connect 後固定回報 720px；Cowart 讓 SDK 依實際 document 尺寸處理該協定。
+- Coart 現在由 SDK 的 `autoResize` 以動畫幀節流及 `ResizeObserver` 回報實際寬高；移除 Coart 自行發出的固定高度通知。這讓 Codex 重新附著 detached webview、改變對話寬度或切回 task 時能拿到目前尺寸，而不是過期的 720px。
+- manifest 與 Widget resource URI 升為 `0.2.7`，避免 Codex Desktop 沿用 v0.2.6 的已快取 bridge；保留 legacy URI 作為舊 tool result 相容入口。
+- `probe:mcp` 會拒絕固定 height override 與 recurring layout pulse，並檢查 bridge 明確啟用 MCP Apps `autoResize`。
+
 ## 2026-07-14 v0.2.6 Codex Desktop Widget 白屏修正
 
 - 實機重現確認不是 MCP bridge 中斷或 React/tldraw crash：畫面消失後 Widget 仍持續成功呼叫 `get_coart_canvas_state`／save tools，Crashpad 也沒有 renderer dump；留下的是 Codex 對話中的灰色 placeholder。
 - Codex Desktop 26.707.9981 會把 MCP App `<webview>` 移到 detached portal，再由 placeholder 的 `ResizeObserver` 維持座標。宿主 log 在白屏期間連續回報 `ResizeObserver loop completed with undelivered notifications`，符合 portal webview 已存活但覆蓋座標／可見性失效。
-- 舊 Widget 的 runtime gzip loader 會在 first paint 後整頁替換 `<head>`／`<body>`；舊版為嘗試修補宿主座標而加入的 2 秒 height pulse，更會讓已恢復對話持續觸發宿主 ResizeObserver。v0.2.6 已完全移除兩者，只送出一次穩定的 720px intrinsic height。
+- 舊 Widget 的 runtime gzip loader 會在 first paint 後整頁替換 `<head>`／`<body>`；舊版為嘗試修補宿主座標而加入的 2 秒 height pulse，更會讓已恢復對話持續觸發宿主 ResizeObserver。v0.2.6 已完全移除兩者，但當時改成固定 720px intrinsic height；v0.2.7 已以 SDK-managed automatic sizing 取代該暫時處理。
 - tldraw 字型由 16 個檔案縮為 4 個 IBM Plex Sans variant，未使用的 provider embed icon 改為單一輕量 fallback；production JS 由約 3.94 MB 降至約 2.44 MB，最終 Widget HTML 由 decoded 約 4.36 MB 降至直接可載入的約 2.86 MB。
 - Widget resource 改用版本化 URI `ui://widget/coart/canvas-v0-2-6.html`，同時保留 legacy URI 相容舊 tool result；Codex Desktop 僅宣告 inline，避免舊 fullscreen side-panel registration 把後續 render 導向不可見容器。
 - `probe:mcp` 會拒絕 gzip loader、`DecompressionStream`、document rewrite 與 recurring layout pulse；`probe:widget` 以 Headless Chrome 實際掛載 React/tldraw 與驗證 icon mask。
@@ -48,7 +55,7 @@
 
 - 這次問題包含 Codex Desktop 本身的 restored-task／MCP App lifecycle 缺陷，並非 Coart 專案檔案損壞。相同 26.707 系列已有公開的 restored task 逐一啟動 plugin MCP、renderer 記憶體累積與 UI blank/reload 報告：<https://github.com/openai/codex/issues/32942>。
 - 本機診斷曾觀察到 26 個 ChatGPT renderer 使用約 5.33 GiB working set；多次測試建立的舊 Widget 即使 bridge 已停止，仍可把 timer 留在 renderer。v0.2.6 移除 Coart 可控制的高風險來源，但 Codex 宿主是否回收已恢復任務的 webview/MCP process 仍需由上游修正。
-- `scripts/install-local.ps1 -ForceReinstall` 會移除舊安裝並安裝 manifest 目前版本；本次已安裝至 `C:\Users\eda\.codex\plugins\cache\coart-public\coart\0.2.6`。
+- `scripts/install-local.ps1 -ForceReinstall` 會移除舊安裝並安裝 manifest 目前版本；本次已安裝至 `C:\Users\eda\.codex\plugins\cache\coart-public\coart\0.2.7`。
 - 實際新 task 呼叫 `render_coart_canvas`（`projectDir: D:\coart`, `displayMode: inline`）後，resource read 與 Widget tools 均成功；v0.2.6 掛載後宿主 log 不再出現舊版每 2 秒成批的 ResizeObserver pulse error。
 
 ## 已知限制
@@ -74,9 +81,11 @@
 - `npm run probe:mcp`：驗證 envelope、外層 head 注入位置、無 runtime loader／recurring pulse，Widget 2,863,529 bytes。
 - `npm run probe:http`：Streamable HTTP `/mcp` 與 11 個 tools 通過。
 - `npm run probe:widget`：Chrome headless 實際掛載 React/tldraw，並確認 tldraw icons，`mounted: true`, `iconsMasked: true`。
+- v0.2.7 widget smoke：Chrome 在 15 秒 virtual-time interval 後輸出 26,817-byte PNG，實際畫面包含完整 tldraw canvas、工具列與色彩面板；probe 會驗證 screenshot 已生成。
+- v0.2.7 Codex Desktop：重新安裝 plugin、開新 task 後載入 `ui://widget/coart/canvas-v0-2-7.html`；inline render 持續可見 10.5 秒，該 task 的 resource read 與 MCP tool calls 都成功，未觀測到 host error。
 - hydration hotfix：直接讀取 `readCanvasState(..., { hydrateAssets: true })` 確認 image asset 會回傳 data URL，且 snapshot 保留 image shape。
 - 10 秒 host harness：以 MCP Apps message bridge 載入 Widget，實際等待 10 秒後 `coart: true`、`tldraw: true`、`toolbar: true`、`loader: false`，page error 為 0，並輸出像素截圖。
-- Codex 安裝快取：`coart@coart-public` v0.2.6 已以 `-ForceReinstall` 更新；快取內 `probe:mcp` 與 `probe:widget` 均通過，13 個交付檔案曾與來源 SHA-256 一致。
+- Codex 安裝快取：`coart@coart-public` v0.2.7 已以 `-ForceReinstall` 更新；快取內 `probe:mcp` 通過，manifest、Widget bridge、MCP probe 與 widget smoke script 均與來源 SHA-256 一致。
 
 ## 建議第一個 Codex 實機驗證
 

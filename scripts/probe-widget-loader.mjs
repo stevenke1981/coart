@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import http from 'node:http'
@@ -19,7 +19,7 @@ function browserCandidates() {
   return [...new Set([configured, ...windows].filter(Boolean))]
 }
 
-function runBrowser(executable, url, userDataDir) {
+function runBrowser(executable, url, userDataDir, screenshotPath) {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, [
       '--headless=new',
@@ -28,6 +28,7 @@ function runBrowser(executable, url, userDataDir) {
       '--disable-dev-shm-usage',
       '--virtual-time-budget=15000',
       `--user-data-dir=${userDataDir}`,
+      `--screenshot=${screenshotPath}`,
       '--dump-dom',
       url
     ], { stdio: ['ignore', 'pipe', 'pipe'] })
@@ -64,10 +65,11 @@ if (!executable) {
     response.end(html)
   })
   const userDataDir = await mkdtemp(join(tmpdir(), 'coart-widget-smoke-'))
+  const screenshotPath = process.env.COART_WIDGET_SCREENSHOT || join(userDataDir, 'widget-after-10s.png')
   try {
     await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
     const { port } = server.address()
-    const result = await runBrowser(executable, `http://127.0.0.1:${port}/`, userDataDir)
+    const result = await runBrowser(executable, `http://127.0.0.1:${port}/`, userDataDir, screenshotPath)
     if (result.code !== 0) throw new Error(`Browser exited with code ${result.code ?? 'null'}${result.signal ? ` (${result.signal})` : ''}.\n${result.stderr.slice(-2000)}`)
     const { stdout } = result
     const mounted = stdout.includes('<div id="root"><div class="coart-app">')
@@ -76,7 +78,17 @@ if (!executable) {
     if (!mounted) throw new Error('Widget loader did not mount the React/tldraw canvas in Chromium.')
     if (stdout.includes('data-coart-loader')) throw new Error('Compressed loader marker remained after document hydration.')
     if (!/data-coart-icon-mask="url\(/.test(stdout)) throw new Error('tldraw icons did not receive a CSS mask URL in Chromium.')
-    console.log(JSON.stringify({ ok: true, browser: executable, mounted: true, iconsMasked: true, domBytes: Buffer.byteLength(stdout) }))
+    const screenshotBytes = (await stat(screenshotPath)).size
+    if (screenshotBytes < 1_000) throw new Error('Widget screenshot was not written after the 10-second smoke interval.')
+    console.log(JSON.stringify({
+      ok: true,
+      browser: executable,
+      mounted: true,
+      iconsMasked: true,
+      domBytes: Buffer.byteLength(stdout),
+      screenshotBytes,
+      ...(process.env.COART_WIDGET_SCREENSHOT ? { screenshot: screenshotPath } : {})
+    }))
   } finally {
     server.close()
     await rm(userDataDir, { recursive: true, force: true })

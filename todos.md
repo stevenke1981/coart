@@ -30,9 +30,9 @@
 - [x] 移除 runtime gzip／DOMParser document rewrite；將 Widget 壓至 4 MiB 以下並直接執行 inline module，避免 first paint 後重建 `<head>`／`<body>`。
 - [x] Widget production build 將 tldraw SVG sprite 拆成單一 icon 的 `blob:` URL，避免 MCP `data:` 文件的 fragment URL 導致 tldraw 工具圖示變成方塊。
 - [x] Codex Desktop v0.2.6 固定採 inline Widget，版本化 resource URI 並保留 legacy alias，避開 stale fullscreen side-panel registration。
-- [x] 移除無效的 recurring height pulse；只送一次穩定 intrinsic size，停止 Codex detached webview 的 ResizeObserver error storm。
+- [x] 移除 recurring height pulse 與固定 720px size override；改由 MCP Apps SDK 的 `autoResize` 依文件實際尺寸回報，讓 Codex 在切換／還原對話後重新定位 detached webview。
 - [x] tldraw 自包含資產由 16 個字型縮為 4 個，移除未使用的 provider icon payload，Widget HTML 由約 4.36 MB 降至約 2.86 MB。
-- [x] Windows 本機安裝腳本加入 `-ForceReinstall` 與版本不符自動升級，可更新既有安裝快取至 0.2.6。
+- [x] Windows 本機安裝腳本加入 `-ForceReinstall` 與版本不符自動升級，可更新既有安裝快取至目前 manifest 版本。
 
 ## 下一版（v0.2）
 
