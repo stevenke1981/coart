@@ -45,8 +45,20 @@ try {
   if (rendered.structuredContent?.widget !== 'coart-canvas-widget') {
     throw new Error('render_coart_canvas returned an unexpected widget payload.')
   }
-  if (rendered.structuredContent?.preferredDisplayMode !== 'inline') {
-    throw new Error('render_coart_canvas must default to inline mode for Codex Desktop stability.')
+  if (rendered.structuredContent?.preferredDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas must default to sidebar mode.')
+  }
+  if (rendered.structuredContent?.requestedDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas must report sidebar as the default request.')
+  }
+
+  const inlineRendered: any = await client.callTool({
+    name: 'render_coart_canvas',
+    arguments: { projectDir: process.cwd(), displayMode: 'inline' }
+  })
+  if (inlineRendered.structuredContent?.preferredDisplayMode !== 'inline'
+    || inlineRendered.structuredContent?.requestedDisplayMode !== 'inline') {
+    throw new Error('render_coart_canvas must preserve an explicit inline request.')
   }
 
   const sidebarRendered: any = await client.callTool({
@@ -87,7 +99,9 @@ try {
   const decodedHtml = decodeWidgetHtml(html)
   if (!decodedHtml.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!/app\.onteardown\s*=/.test(decodedHtml)) throw new Error('Widget bridge teardown handler was not registered.')
-  if (!decodedHtml.includes("availableDisplayModes: ['inline', 'sidebar']")) throw new Error('Widget must advertise inline and sidebar display support.')
+  if (!decodedHtml.includes("availableDisplayModes: ['inline']")) throw new Error('Widget must advertise the standard inline fallback mode.')
+  if (decodedHtml.includes("availableDisplayModes: ['inline', 'sidebar']")) throw new Error('Widget must not send the non-standard sidebar mode during ui/initialize.')
+  if (!decodedHtml.includes('widgetData: payload')) throw new Error('Widget bridge must publish tool data for project target recovery.')
   if (!decodedHtml.includes('{ autoResize: true }') || decodedHtml.includes('notifyHostSize') || decodedHtml.includes('layoutPulseTimer = setInterval')) {
     throw new Error('Widget bridge must delegate intrinsic sizing to the Apps SDK without a fixed-size override or recurring layout pulse.')
   }

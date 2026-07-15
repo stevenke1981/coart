@@ -14,7 +14,7 @@ Coart v0.2.7 is TypeScript-first:
 - Node.js 22.6+ executes `scripts/start-mcp.ts` directly with type stripping.
 - The stdio entrypoint imports `mcp/server.ts`; do not refer to removed `.mjs` entrypoints.
 - The default editor is a standalone Chrome／Edge app window served from a token-protected loopback bridge. It is bound to the requested project and writes only to `<projectDir>/canvas/`.
-- `render_coart_canvas` remains an MCP Apps Widget fallback and supports `inline` or `sidebar`. It is not required for the external editor workflow.
+- `render_coart_canvas` is the MCP Apps Widget path and defaults to the Codex host `sidebar`; pass `displayMode: "inline"` for an explicit inline fallback. It is not required for the external editor workflow.
 
 ## Default open procedure
 
@@ -31,23 +31,23 @@ Coart v0.2.7 is TypeScript-first:
 4. When the user finishes editing, return to the same Codex task. Call `get_coart_latest_image` to return the newest project-local image as MCP image content, or call `read_coart_asset` when the user names a specific asset. Keep the original asset unless the user explicitly requests replacement.
 5. If the standalone editor presents a generated follow-up prompt, tell the user to paste the copied prompt into this same Codex task. The external window has no Codex host follow-up bridge, so it cannot send the chat message automatically.
 
-## Inline fallback
+## Sidebar Widget (default) and inline fallback
 
-Use `render_coart_canvas` when the user explicitly requests inline/sidebar display or when external window launch is unavailable:
+Use `render_coart_canvas` when the user requests the in-task canvas or when external window launch is unavailable. The default is sidebar:
 
 ```json
 {
   "projectDir": "C:/work/my-project",
-  "displayMode": "inline"
+  "displayMode": "sidebar"
 }
 ```
 
-Use `"sidebar"` instead of `"inline"` when the host should place the same Fabric canvas in the side panel. For either mode, check `codex features list` first. Both `apps ... true` and `enable_mcp_apps ... true` are required. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. The expected v0.2.7 resource URI is `ui://widget/coart/canvas-v0-2-7.html`.
+Use `"inline"` only when the canvas must appear inside the conversation. For either mode, check `codex features list` first. Both `apps ... true` and `enable_mcp_apps ... true` are required. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. The expected v0.2.7 resource URI is `ui://widget/coart/canvas-v0-2-7.html`.
 
 ## Recovery
 
 - If `open_coart_editor` is unavailable immediately after installation or an update, start a new Codex task so plugin tools are reloaded.
-- If the MCP proxy reports `-32000`, verify that `coart@coart-public` is installed and enabled from the current source, then fully restart Codex Desktop and start a new task. Do not repeatedly render the inline Widget.
+- If the MCP proxy reports `-32000` during save, verify that `coart@coart-public` is installed and enabled from the current source, reinstall it, then fully restart Codex Desktop and start a new task. Current autosave writes are serialized to avoid proxy concurrency failures; do not repeatedly render the stale Widget.
 - If the browser does not launch, retry once after closing an old Coart window; the editor API can still be tested through the returned loopback URL while that server remains alive.
 - If only MCP tool JSON is visible, use the external editor workflow; the renderer gate applies to inline MCP Apps only.
 - Preserve the user's project path and existing `<projectDir>/canvas` state; never delete canvas files as part of reopening.

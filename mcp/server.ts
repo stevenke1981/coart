@@ -25,7 +25,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifest = JSON.parse(readFileSync(join(root, '.codex-plugin', 'plugin.json'), 'utf8'))
 export function createCoartServer() {
   const server = new McpServer({ name: manifest.name, version: manifest.version }, {
-    instructions: 'For Codex Desktop or ChatGPT workflows, use open_coart_editor to open the standalone project-local editor window. Use get_coart_latest_image or read_coart_asset when the conversation needs to see an edited image, then use insert_coart_image for placement. Use render_coart_canvas only when the host explicitly supports an MCP Apps Widget.'
+    instructions: 'For Codex Desktop or ChatGPT workflows, use open_coart_editor to open the standalone project-local editor window. Use get_coart_latest_image or read_coart_asset when the conversation needs to see an edited image, then use insert_coart_image for placement. When an MCP Apps Widget host is available, render_coart_canvas defaults to sidebar; pass displayMode inline for an explicit inline fallback.'
   })
 
 const targetSchema = {
@@ -74,11 +74,10 @@ registerAppTool(server, 'render_coart_canvas', {
     widget: 'coart-canvas-widget',
     title: input.title || 'Coart Canvas',
     rendering: 'native-widget',
-    // Keep fullscreen accepted for backwards compatibility, but only request
-    // host modes that this Fabric widget advertises. Sidebar is now a first-
-    // class host layout alongside the stable inline fallback.
-    preferredDisplayMode: input.displayMode === 'sidebar' ? 'sidebar' : 'inline',
-    requestedDisplayMode: input.displayMode || 'inline',
+    // Sidebar is the default Codex host placement. Keep explicit inline and
+    // legacy fullscreen requests on the standard inline MCP Apps path.
+    preferredDisplayMode: input.displayMode === 'inline' || input.displayMode === 'fullscreen' ? 'inline' : 'sidebar',
+    requestedDisplayMode: input.displayMode || 'sidebar',
     projectDir: paths.projectDir,
     canvasDir: paths.canvasDir,
     staticDir: WIDGET_BUILD_DIR

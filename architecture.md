@@ -30,7 +30,7 @@ MCP storage layer
 - `GenerationPanel.tsx`：prompt、參考圖、頁數與 follow-up message。
 - `SlidesViewer.tsx`：讀取 Slides frame 的子 HTML shape 並播放。
 - `SlidesViewer.tsx`：使用 `iframe srcDoc` 顯示單檔 HTML；畫布上的 HTML slot 以可編輯 Fabric 物件呈現。
-- `coartClient.ts`：MCP bridge、standalone editor loopback API 與 localStorage fallback。
+- `coartClient.ts`：MCP bridge、project target recovery、standalone editor loopback API 與 localStorage fallback。
 - `prompts.ts`：集中管理送給 Codex 的工作流提示詞。
 - `fabricCanvas.ts`：Fabric 物件與 Coart `schema/store` 快照之間的轉換 facade。
 
@@ -65,6 +65,8 @@ canvas/
 圖片 asset 使用 `/assets/<name>`。Widget 載入時 MCP 會回傳 hydrated snapshot，將本機資產暫時轉為 data URL；磁碟上的 snapshot 仍維持相對 URL。
 
 Codex plugin 使用 stdio MCP；`open_coart_editor` 另外建立只監聽 `127.0.0.1` 的短生命週期 editor server，將 standalone Widget 與固定的 `projectDir` 綁定，並以 token 驗證 state／selection／view／reference API。ChatGPT Developer Mode 可透過 `npm run start:http` 啟動 Streamable HTTP `/mcp`，再以 HTTPS tunnel 暴露；這是遠端 MCP 連線，與本機外部編輯器的 loopback bridge 分開。
+
+MCP Widget 的預設放置偏好是 Codex host sidebar；MCP Apps SDK 初始化只宣告標準 inline fallback，避免把 host 專用的 sidebar 名稱送進標準 schema。Widget 會先保存 snapshot，再依序保存 selection 與 view，避免 proxy 併發寫入造成 `-32000`。
 
 ## 主要資料標記
 

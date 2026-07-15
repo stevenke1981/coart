@@ -1,5 +1,6 @@
 import type {
   CanvasState,
+  CoartToolOutput,
   DownloadPayload,
   ReferenceImageInput,
   ReferenceImageResult,
@@ -55,8 +56,27 @@ async function callExternal(path: string, method: 'GET' | 'POST' = 'GET', body?:
   return payload
 }
 
-function toolPayload() {
-  return window.openai?.toolOutput ?? {}
+function parseToolPayload(value: unknown): CoartToolOutput {
+  if (typeof value === 'string') {
+    try {
+      return parseToolPayload(JSON.parse(value))
+    } catch {
+      return {}
+    }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return value as CoartToolOutput
+}
+
+function toolPayload(): CoartToolOutput {
+  const openai = window.openai ?? {}
+  const payloads = [openai.toolOutput, openai.widgetData, openai.toolInput, {
+    projectDir: openai.projectDir,
+    canvasDir: openai.canvasDir
+  }].map(parseToolPayload)
+  return payloads.find((payload) => payload.projectDir || payload.canvasDir)
+    || payloads.find((payload) => Object.keys(payload).length > 0)
+    || {}
 }
 
 function withTarget(extra: object = {}): Record<string, unknown> {

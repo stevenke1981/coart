@@ -137,7 +137,11 @@ export interface CoartMcpBridge {
 }
 
 export interface OpenAiBridge {
-  toolOutput?: CoartToolOutput
+  toolOutput?: unknown
+  toolInput?: unknown
+  widgetData?: unknown
+  projectDir?: string
+  canvasDir?: string
 }
 
 export interface CanvasViewportBounds {

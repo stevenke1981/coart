@@ -144,7 +144,11 @@ function bridgeScript() {
         },
         requestDisplayMode: async (request = {}) => {
           await ready;
-          const mode = request?.mode === 'sidebar' ? 'sidebar' : 'inline';
+          if (request?.mode === 'sidebar') {
+            publish({ displayModePreference: 'sidebar' });
+            return { mode: 'sidebar' };
+          }
+          const mode = ['fullscreen', 'pip'].includes(request?.mode) ? request.mode : 'inline';
           return app.requestDisplayMode({ mode });
         },
         getHostCapabilities: () => app.getHostCapabilities?.()
@@ -153,16 +157,33 @@ function bridgeScript() {
     const toolResult = (result) => {
       const metadata = result?._meta || {};
       const payload = metadata.widgetData || result?.structuredContent || result || {};
-      publish({ rawToolResult: result, toolOutput: payload, toolResponseMetadata: metadata });
+      const target = payload && typeof payload === 'object' ? payload : {};
+      publish({
+        rawToolResult: result,
+        toolOutput: payload,
+        widgetData: payload,
+        projectDir: target.projectDir,
+        canvasDir: target.canvasDir,
+        toolResponseMetadata: metadata
+      });
       if (payload.preferredDisplayMode && app?.requestDisplayMode) {
-        const mode = payload.preferredDisplayMode === 'sidebar' ? 'sidebar' : 'inline';
-        app.requestDisplayMode({ mode }).catch(() => {});
+        if (payload.preferredDisplayMode === 'sidebar') {
+          publish({ displayModePreference: 'sidebar' });
+        } else {
+          const mode = ['fullscreen', 'pip'].includes(payload.preferredDisplayMode)
+            ? payload.preferredDisplayMode
+            : 'inline';
+          app.requestDisplayMode({ mode }).catch(() => {});
+        }
       }
     };
     // Let the Apps SDK measure the final document after Codex has attached its
     // detached widget surface. A one-shot, fixed height can become stale when
     // the conversation view is restored or its width changes.
-    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline', 'sidebar'] }, { autoResize: true });
+    // MCP Apps 1.7 only defines inline/fullscreen/pip. Codex's sidebar is a
+    // host-level placement preference carried by the tool result; advertising
+    // the non-standard value here makes ui/initialize fail before saving works.
+    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline'] }, { autoResize: true });
     // MCP Apps hosts send ui/resource-teardown before unmounting a view, for
     // example when the user switches conversations. Register the handler
     // before connect() so the SDK can answer the lifecycle request cleanly.

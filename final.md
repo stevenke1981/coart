@@ -2,6 +2,13 @@
 
 本交付在獨立 clean-room `coart` 專案上完成 v0.2 儲存與安裝可靠性升級，不依賴 Cowart 原始碼或品牌資產。
 
+## 2026-07-15 sidebar 預設與 MCP proxy 儲存失敗修正
+
+- `render_coart_canvas` 未指定模式時現在要求 `sidebar`；明確指定 `inline` 仍可使用，舊 `fullscreen` 請求維持 inline fallback。
+- MCP Apps SDK 只宣告標準 inline 能力，sidebar 以 Codex host 的放置偏好傳遞；避免非標準 `availableDisplayModes: ['inline', 'sidebar']` 讓 `ui/initialize` 失敗、造成畫布可見但保存 bridge 不可用。
+- autosave 改成依序保存 snapshot、selection、view state，並以 `toolOutput`／`widgetData`／`toolInput` 多路恢復 `projectDir` 與 `canvasDir`，降低 `MCP error -32000`。
+- 重新安裝前會保留既有 `D:\coart\canvas`；更新後須重開 Codex task 讓 stdio MCP 與 Widget cache 載入新版本。
+
 ## 2026-07-15 sidebar 與 Fabric 畫布直接編輯
 
 - `render_coart_canvas` 現在保留 `inline` 穩定預設，並正式支援 `sidebar`；Widget bridge 宣告 `availableDisplayModes: ['inline', 'sidebar']`，舊 `fullscreen` 請求仍回退到 inline 以維持相容性。
