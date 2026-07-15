@@ -57,10 +57,10 @@ if (!executable) {
   console.log(JSON.stringify({ ok: true, skipped: true, reason: 'No Chrome/Chromium executable found.' }))
 } else {
   const baseHtml = await widgetHtml()
-  const iconProbe = `<script>setTimeout(() => { const icon = document.querySelector('.tlui-icon'); const mask = icon?.style.mask || icon?.style.webkitMask || ''; document.documentElement.setAttribute('data-coart-icon-mask', mask); }, 1500)</script>`
+  const canvasProbe = `<script>setTimeout(() => { const canvas = document.querySelector('.coart-fabric-canvas'); const shell = document.querySelector('.coart-fabric-shell'); const rectangleTool = document.querySelector('[data-coart-tool="rectangle"]'); const textTool = document.querySelector('[data-coart-tool="text"]'); const ready = Boolean(canvas && shell && canvas.width > 0 && canvas.height >= 640 && rectangleTool && textTool); document.documentElement.setAttribute('data-coart-fabric-mounted', String(ready)); }, 1500)</script>`
   const bodyClose = baseHtml.lastIndexOf('</body>')
   if (bodyClose < 0) throw new Error('Widget HTML is missing its outer closing body tag.')
-  const html = `${baseHtml.slice(0, bodyClose)}${iconProbe}${baseHtml.slice(bodyClose)}`
+  const html = `${baseHtml.slice(0, bodyClose)}${canvasProbe}${baseHtml.slice(bodyClose)}`
   const server = http.createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
     response.end(html)
@@ -76,18 +76,20 @@ if (!executable) {
     if (result.code !== 0) throw new Error(`Browser exited with code ${result.code ?? 'null'}${result.signal ? ` (${result.signal})` : ''}.\n${result.stderr.slice(-2000)}`)
     const { stdout } = result
     const mounted = stdout.includes('<div id="root"><div class="coart-app">')
-      && stdout.includes('data-tldraw=')
-      && stdout.includes('tl-container')
-    if (!mounted) throw new Error('Widget loader did not mount the React/tldraw canvas in Chromium.')
+      && stdout.includes('coart-fabric-shell')
+      && stdout.includes('coart-fabric-canvas')
+      && stdout.includes('data-coart-tool="rectangle"')
+      && stdout.includes('data-coart-tool="text"')
+      && stdout.includes('data-coart-fabric-mounted="true"')
+    if (!mounted) throw new Error('Widget loader did not mount the React/Fabric canvas in Chromium.')
     if (stdout.includes('data-coart-loader')) throw new Error('Compressed loader marker remained after document hydration.')
-    if (!/data-coart-icon-mask="url\(/.test(stdout)) throw new Error('tldraw icons did not receive a CSS mask URL in Chromium.')
     const screenshotBytes = (await stat(screenshotPath)).size
     if (screenshotBytes < 1_000) throw new Error('Widget screenshot was not written after the 10-second smoke interval.')
     console.log(JSON.stringify({
       ok: true,
       browser: executable,
       mounted: true,
-      iconsMasked: true,
+      canvasReady: true,
       domBytes: Buffer.byteLength(stdout),
       screenshotBytes,
       ...(process.env.COART_WIDGET_SCREENSHOT ? { screenshot: screenshotPath } : {})

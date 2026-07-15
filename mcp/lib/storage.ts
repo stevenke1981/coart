@@ -92,7 +92,7 @@ function clone(value: any): any {
 
 function ensureSnapshot(snapshot: any): asserts snapshot is { schema: any; store: Record<string, AnyRecord> } {
   if (!snapshot || typeof snapshot !== 'object' || !snapshot.schema || !snapshot.store) {
-    throw new Error('Invalid tldraw snapshot: schema and store are required.')
+    throw new Error('Invalid Coart canvas snapshot: schema and store are required.')
   }
 }
 
@@ -454,6 +454,34 @@ export async function readAsset(args: any = {}, assetUrl: string) {
     dataBase64: buffer.toString('base64'),
     fileSize: buffer.length
   }
+}
+
+export async function readLatestImageAsset(args: any = {}) {
+  const { assetsDir } = resolveCoartPaths(args)
+  let entries
+  try {
+    entries = await readdir(assetsDir, { withFileTypes: true })
+  } catch (error) {
+    if (error?.code === 'ENOENT') throw new Error('Coart project has no saved assets yet.')
+    throw error
+  }
+
+  const candidates = []
+  for (const entry of entries) {
+    if (!entry.isFile()) continue
+    const filePath = resolve(assetsDir, entry.name)
+    if (!isSafeChildPath(assetsDir, filePath)) throw new Error('Unsafe Coart asset path.')
+    const mimeType = mimeForFile(entry.name)
+    if (!mimeType.startsWith('image/')) continue
+    const fileStat = await stat(filePath)
+    candidates.push({ fileName: entry.name, assetUrl: `${ASSET_ROUTE}${encodeURIComponent(entry.name)}`, mimeType, updatedAt: fileStat.mtime.toISOString(), mtimeMs: fileStat.mtimeMs })
+  }
+
+  candidates.sort((left, right) => right.mtimeMs - left.mtimeMs || right.fileName.localeCompare(left.fileName))
+  const latest = candidates[0]
+  if (!latest) throw new Error('Coart project has no saved image assets yet.')
+  const asset = await readAsset(args, latest.assetUrl)
+  return { ...asset, updatedAt: latest.updatedAt }
 }
 
 function firstSelectedShapeId(selection: any) {

@@ -3,6 +3,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { decodeWidgetHtml, LEGACY_WIDGET_URIS, WIDGET_HTML_GUARD_BYTES, WIDGET_URI } from '../mcp/lib/widget.ts'
 
 const expectedTools = [
+  'open_coart_editor',
   'render_coart_canvas',
   'get_coart_canvas_state',
   'save_coart_canvas_state',
@@ -11,6 +12,7 @@ const expectedTools = [
   'get_coart_selection',
   'save_coart_reference_image',
   'read_coart_asset',
+  'get_coart_latest_image',
   'insert_coart_image',
   'insert_coart_html',
   'download_coart_file'
@@ -43,8 +45,31 @@ try {
   if (rendered.structuredContent?.widget !== 'coart-canvas-widget') {
     throw new Error('render_coart_canvas returned an unexpected widget payload.')
   }
-  if (rendered.structuredContent?.preferredDisplayMode !== 'inline') {
-    throw new Error('render_coart_canvas must default to inline mode for Codex Desktop stability.')
+  if (rendered.structuredContent?.preferredDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas must default to sidebar mode.')
+  }
+  if (rendered.structuredContent?.requestedDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas must report sidebar as the default request.')
+  }
+
+  const inlineRendered: any = await client.callTool({
+    name: 'render_coart_canvas',
+    arguments: { projectDir: process.cwd(), displayMode: 'inline' }
+  })
+  if (inlineRendered.structuredContent?.preferredDisplayMode !== 'inline'
+    || inlineRendered.structuredContent?.requestedDisplayMode !== 'inline') {
+    throw new Error('render_coart_canvas must preserve an explicit inline request.')
+  }
+
+  const sidebarRendered: any = await client.callTool({
+    name: 'render_coart_canvas',
+    arguments: { projectDir: process.cwd(), displayMode: 'sidebar' }
+  })
+  if (sidebarRendered.structuredContent?.preferredDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas must preserve the requested sidebar display mode.')
+  }
+  if (sidebarRendered.structuredContent?.requestedDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas did not retain the requested sidebar display mode for diagnostics.')
   }
 
   const fullscreenRendered: any = await client.callTool({
@@ -52,10 +77,10 @@ try {
     arguments: { projectDir: process.cwd(), displayMode: 'fullscreen' }
   })
   if (fullscreenRendered.structuredContent?.preferredDisplayMode !== 'inline') {
-    throw new Error('render_coart_canvas must coerce fullscreen to inline while the Codex Desktop host bug is active.')
+    throw new Error('render_coart_canvas must fall back to inline for legacy fullscreen requests.')
   }
   if (fullscreenRendered.structuredContent?.requestedDisplayMode !== 'fullscreen') {
-    throw new Error('render_coart_canvas did not retain the requested display mode for diagnostics.')
+    throw new Error('render_coart_canvas did not retain the legacy fullscreen request for diagnostics.')
   }
 
   const resources = await client.listResources()
@@ -74,22 +99,24 @@ try {
   const decodedHtml = decodeWidgetHtml(html)
   if (!decodedHtml.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!/app\.onteardown\s*=/.test(decodedHtml)) throw new Error('Widget bridge teardown handler was not registered.')
-  if (!decodedHtml.includes("availableDisplayModes: ['inline']")) throw new Error('Widget must advertise inline-only display support.')
+  if (!decodedHtml.includes("availableDisplayModes: ['inline']")) throw new Error('Widget must advertise the standard inline fallback mode.')
+  if (decodedHtml.includes("availableDisplayModes: ['inline', 'sidebar']")) throw new Error('Widget must not send the non-standard sidebar mode during ui/initialize.')
+  if (!decodedHtml.includes('widgetData: payload')) throw new Error('Widget bridge must publish tool data for project target recovery.')
   if (!decodedHtml.includes('{ autoResize: true }') || decodedHtml.includes('notifyHostSize') || decodedHtml.includes('layoutPulseTimer = setInterval')) {
     throw new Error('Widget bridge must delegate intrinsic sizing to the Apps SDK without a fixed-size override or recurring layout pulse.')
   }
   if (/html,body(?:,#root)?\{[^}]*height:100%/.test(decodedHtml)
     || !/html,body(?:,#root)?\{[^}]*min-height:640px/.test(decodedHtml)
     || !/\.coart-app\{[^}]*min-height:640px/.test(decodedHtml)
-    || !/\.coart-app>\.tl-container\{[^}]*min-height:640px/.test(decodedHtml)) {
+    || !/\.coart-fabric-shell\{[^}]*min-height:640px/.test(decodedHtml)) {
     throw new Error('Widget must keep a non-zero intrinsic height for MCP host autoResize handshakes.')
   }
   if (html.includes('data-coart-loader') || html.includes('DecompressionStream') || html.includes('document.importNode')) {
     throw new Error('Widget unexpectedly contains the legacy runtime document-rewrite loader.')
   }
   if (!decodedHtml.includes('<style>') || !decodedHtml.includes('<script>')) throw new Error('Widget build was not inlined.')
-  if (!decodedHtml.includes('DOMParser') || !decodedHtml.includes('createObjectURL') || !decodedHtml.includes('image/svg+xml')) {
-    throw new Error('Widget did not include the self-contained SVG icon path for tldraw icons.')
+  if (!decodedHtml.includes('coart-fabric-canvas') || !decodedHtml.includes('fabric')) {
+    throw new Error('Widget did not include the self-contained Fabric.js canvas bundle.')
   }
   const outerHeadClose = decodedHtml.lastIndexOf('</head>')
   const bridgeBundle = decodedHtml.indexOf('__COART_EXT_APPS__')

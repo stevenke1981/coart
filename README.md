@@ -1,13 +1,16 @@
 # Coart
 
-Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布插件。它使用 tldraw 顯示畫布，透過 MCP Widget 與 Codex 溝通，並將畫布與資產保存在使用者目前專案的 `canvas/` 目錄。
+Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布插件。它使用 Fabric.js 顯示與編輯畫布，透過 MCP Widget 與 Codex 溝通，並將畫布與資產保存在使用者目前專案的 `canvas/` 目錄。
 
 > 本專案是依公開功能與公開介面重新設計，不包含 Cowart 原始碼、圖示、品牌文字或圖片資產。
 
 ## 已實作
 
-- Codex 原生 MCP Widget，可切換 inline / fullscreen。
-- tldraw 無限畫布與本機開發模式。
+- Codex 原生 MCP Widget（預設 sidebar，inline 為明確指定的 fallback）與獨立 Coart 編輯器視窗。
+- `open_coart_editor` 以受 token 保護的 loopback HTTP bridge 開啟外部編輯器，狀態與圖片固定保存到目前專案的 `canvas/`。
+- `get_coart_latest_image` 與 `read_coart_asset` 以 MCP image content 將專案圖片讀回同一個 Codex 對話。
+- Fabric.js 無限畫布與本機開發模式；inline、sidebar 與外部編輯器共用同一個渲染核心。
+- 畫布工具支援拖曳建立框線，以及點擊新增可直接雙擊／輸入編輯的文字物件。
 - v2 manifest、per-page snapshot、相容回復副本、選取／視角與資產持久化。
 - v1 snapshot 自動相容，下一次保存遷移到 v2。
 - 資產 checksum、引用與保護標記。
@@ -18,7 +21,7 @@ Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布
 - HTML Slides 預覽與全螢幕播放。
 - 無 MCP 時使用瀏覽器 localStorage，方便前端開發。
 - 前端與 MCP/scripts/tests 全面使用 TypeScript；Node 22.6+ 直接執行 `.ts` entrypoint。
-- Widget 以自包含 inline HTML 傳輸，並以 Chromium smoke 驗證實際掛載。
+- Widget 以自包含 HTML 傳輸，並以 Chromium smoke 驗證實際掛載。
 
 ## 從 GitHub 安裝到 Codex / ChatGPT desktop
 
@@ -35,6 +38,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-local.ps1
 ```text
 Open the Coart canvas for this project.
 ```
+
+開啟畫布的預設流程是呼叫 `open_coart_editor`，由 Chrome／Edge 以獨立 app 視窗開啟 Coart；它只監聽 `127.0.0.1`，並以一次性 token 保護該專案的 API。編輯器與 Codex 對話仍使用同一個專案目錄，所有 snapshot 與圖片都寫入 `<projectDir>/canvas/`。完成編輯後回到原對話，要求「讀取最新圖片」即可由 `get_coart_latest_image` 將實際圖片內容回傳給 Codex；原始圖片不會被自動刪除。
+
+獨立視窗沒有 Codex host 的 follow-up bridge，因此畫布內產生的提示詞會先複製到剪貼簿，貼回同一個 Codex 對話即可繼續工作。`render_coart_canvas` 未指定 `displayMode` 時預設要求 Codex host 放到 `sidebar`；需要對話內嵌時才明確指定 `inline`。Widget bridge 只向 MCP Apps SDK 宣告標準的 inline 能力，sidebar 作為 Codex host 的放置偏好傳遞，避免非標準 mode 讓初始化失敗。
+
+Widget autosave 會依序保存 snapshot、selection 與 view state，避免同一個 MCP proxy 同時處理三個寫入請求而回傳 `MCP error -32000`。
 
 若只想快速安裝並已自行跑過驗證，可在上方命令末尾加上 `-SkipQuality`。這只對該次 PowerShell 程序略過簽章政策，不會修改系統全域設定。
 
@@ -58,19 +67,20 @@ npm install
 npm run dev
 ```
 
-本機開發不依賴 MCP；畫布會保存到瀏覽器 localStorage。原生 Widget 模式才會保存到目前專案的 `canvas/`。
+本機開發不依賴 MCP；一般 Vite 頁面會保存到瀏覽器 localStorage。由 `open_coart_editor` 開啟的 standalone 頁面則直接透過 loopback bridge 保存到目前專案的 `canvas/`。
 
 Node.js 22.6+ 以 type stripping 直接執行 MCP entrypoint、tests 與 probe scripts（`scripts/start-mcp.ts` 等），不需額外 TypeScript runtime 編譯步驟。
 
 ## Widget HTML 大小與自包含載入
 
-ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 不再直接傳送約 4.31 MB 的 decoded HTML，而是傳送約 2.81 MB 的 gzip/base64 envelope，由瀏覽器內建 `DecompressionStream` 還原；`npm run probe:mcp` 會以 4 MiB 作為專案回歸防護線，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/tldraw 已掛載。
+ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 現在直接傳送自包含 HTML；`npm run probe:mcp` 會檢查 sidebar 預設、inline fallback、資源大小與 bridge 內容，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/Fabric.js 已掛載。外部編輯器沿用同一份自包含 HTML，但由受 token 保護的本機 loopback server 提供，不需要 MCP Apps renderer。
 
 MCP Apps 的[官方規格](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)要求 Widget resource 是有效 HTML5；[Apps SDK 文件](https://developers.openai.com/apps-sdk/build/mcp-server/)說明 CSP metadata 與 resource registration，但沒有公布固定 HTML byte 上限，實際 host 仍應在登入後的 Developer Mode 進行驗收。
 
 ## MCP 工具
 
 - `render_coart_canvas`
+- `open_coart_editor`
 - `get_coart_canvas_state`
 - `save_coart_canvas_state`
 - `save_coart_selection`
@@ -78,6 +88,7 @@ MCP Apps 的[官方規格](https://github.com/modelcontextprotocol/ext-apps/blob
 - `get_coart_selection`
 - `save_coart_reference_image`
 - `read_coart_asset`
+- `get_coart_latest_image`
 - `insert_coart_image`
 - `insert_coart_html`
 - `download_coart_file`

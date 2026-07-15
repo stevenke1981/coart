@@ -1,6 +1,6 @@
-import { FileCode2, ImagePlus, MonitorPlay, MousePointer2, PencilLine, Presentation, Save } from 'lucide-react'
-import { createShapeId } from 'tldraw'
+import { FileCode2, ImagePlus, MonitorPlay, MousePointer2, PencilLine, Presentation, Save, Square, Type } from 'lucide-react'
 import { ASPECT_PRESETS, COART_KINDS, DEFAULT_HTML_SIZE, DEFAULT_SLIDES_SIZE } from '../constants'
+import { createCoartShapeId } from '../lib/fabricCanvas'
 import type { CoartKind, EditorLike } from '../types'
 
 interface FrameOptions {
@@ -17,7 +17,7 @@ function viewportPoint(editor: EditorLike): { x: number; y: number } {
 
 function createFrame(editor: EditorLike, { kind, width, height, name }: FrameOptions): void {
   const center = viewportPoint(editor)
-  const id = createShapeId()
+  const id = createCoartShapeId()
   editor.createShape({
     id,
     type: 'frame',
@@ -26,7 +26,7 @@ function createFrame(editor: EditorLike, { kind, width, height, name }: FrameOpt
     props: { w: width, h: height, name },
     meta: { coartKind: kind, coartVersion: 1 }
   })
-  editor.select(id)
+  window.setTimeout(() => editor.select(id), 0)
 }
 
 interface CanvasToolbarProps {
@@ -45,8 +45,10 @@ export function CanvasToolbar({ editor, aspectId, onAspectChange, onAnnotate, on
   return (
     <div className="coart-toolbar" aria-label="Coart tools">
       <div className="coart-brand"><span>Coart</span><small>AI Canvas</small></div>
-      <button onClick={() => editor.setCurrentTool('select')} title="選取"><MousePointer2 size={17} /></button>
-      <button onClick={() => editor.setCurrentTool('draw')} title="手繪"><PencilLine size={17} /></button>
+      <button data-coart-tool="select" onClick={() => editor.setCurrentTool('select')} title="選取"><MousePointer2 size={17} /></button>
+      <button data-coart-tool="draw" onClick={() => editor.setCurrentTool('draw')} title="手繪"><PencilLine size={17} /></button>
+      <button data-coart-tool="rectangle" onClick={() => editor.setCurrentTool('rectangle')} title="拖曳建立框線"><Square size={17} />框線</button>
+      <button data-coart-tool="text" onClick={() => editor.setCurrentTool('text')} title="點擊畫布新增可編輯文字"><Type size={17} />文字</button>
       <div className="coart-divider" />
       <select value={aspectId} onChange={(event) => onAspectChange(event.target.value)} aria-label="圖片比例">
         {ASPECT_PRESETS.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}

@@ -2,11 +2,55 @@
 
 本交付在獨立 clean-room `coart` 專案上完成 v0.2 儲存與安裝可靠性升級，不依賴 Cowart 原始碼或品牌資產。
 
+## 2026-07-15 sidebar 預設與 MCP proxy 儲存失敗修正
+
+- `render_coart_canvas` 未指定模式時現在要求 `sidebar`；明確指定 `inline` 仍可使用，舊 `fullscreen` 請求維持 inline fallback。
+- MCP Apps SDK 只宣告標準 inline 能力，sidebar 以 Codex host 的放置偏好傳遞；避免非標準 `availableDisplayModes: ['inline', 'sidebar']` 讓 `ui/initialize` 失敗、造成畫布可見但保存 bridge 不可用。
+- autosave 改成依序保存 snapshot、selection、view state，並以 `toolOutput`／`widgetData`／`toolInput` 多路恢復 `projectDir` 與 `canvasDir`，降低 `MCP error -32000`。
+- 重新安裝前會保留既有 `D:\coart\canvas`；更新後須重開 Codex task 讓 stdio MCP 與 Widget cache 載入新版本。
+
+## 2026-07-15 sidebar 與 Fabric 畫布直接編輯
+
+- `render_coart_canvas` 現在保留 `inline` 穩定預設，並正式支援 `sidebar`；Widget bridge 宣告 `availableDisplayModes: ['inline', 'sidebar']`，舊 `fullscreen` 請求仍回退到 inline 以維持相容性。
+- Fabric 畫布新增「框線」工具，可直接拖曳建立可選取、可移動與可調整大小的矩形框線。
+- Fabric 畫布新增「文字」工具，點擊後立即建立可編輯的 IText；新增文字會自動選取全部內容，既有文字可直接雙擊編輯，文字內容會隨 autosave 保存。
+- `scripts/probe-mcp.ts` 已加入 sidebar／fullscreen fallback 回歸檢查；Chromium widget smoke 仍驗證實際 Fabric canvas 掛載。
+
+## 2026-07-15 Fabric.js 畫布遷移
+
+- 因 tldraw SDK 的 production license gate 會在 inline 與 standalone bundle 顯示授權提示，前端已全面改用 Fabric.js；`package.json` 與 lockfile 已移除 `tldraw`／`@tldraw/assets`。
+- `FabricCanvas` 與 `CoartFabricEditor` 現在提供選取、框架建立、手繪、縮放、平移、圖片載入、標註匯出與 autosave；MCP 既有 `schema/store` 快照格式維持相容，既有 `canvas/` 圖片不需搬移。
+- inline Widget 與 Chrome／Edge standalone editor 使用同一份 Fabric.js bundle，避免兩種畫布模式行為分叉，也不再需要 tldraw asset/license 設定。
+- `probe:mcp` 與 Chromium widget smoke 已改為驗證 `.coart-fabric-canvas` 實際掛載；本次 `npm run quality` 全部通過：13/13 tests、Node/frontend typecheck、build、stdio/HTTP probes 與 Chromium smoke，Widget `855,420` bytes，`mounted: true`、`canvasReady: true`。
+
+### Fabric 邊界
+
+- `coart-html` shape 在 Fabric 畫布上以可選取的 HTML slot placeholder 呈現；完整 HTML 仍由既有 Slides viewer 以 sandbox iframe 播放。
+- Fabric.js 目前保存可編輯物件與原始 Coart records；若要加入 pixel-level crop／paint，仍需另建影像編輯工具層。
+
+## 2026-07-15 外部編輯器視窗交付
+
+- `open_coart_editor` 現在是開啟畫布的預設路徑：以 token 保護的 `127.0.0.1` loopback server 提供自包含 Coart 頁面，並由 Chrome／Edge app mode 開啟獨立視窗。
+- standalone 頁面透過同一個 project-bound API 寫入 `<projectDir>/canvas/`；不依賴 Codex Desktop 的 MCP Apps inline renderer，也不會把專案檔案暴露成任意靜態檔案。
+- `get_coart_latest_image` 與 `read_coart_asset` 會回傳標準 MCP image content，讓同一個 Codex task 能看見實際圖片並繼續對話。外部視窗沒有 host follow-up bridge，因此 prompt 會複製到剪貼簿，需貼回原對話。
+
+### 邊界與後續
+
+- 目前 standalone 視窗是 Fabric.js 畫布、圖片配置與標註編輯器，不是 Photoshop 類的 pixel-level crop／paint 編輯器；該項目已列入 `todos.md`。
+- 已完成 server/API 與 Chromium mount smoke；尚未將 Chrome／Edge app-mode 的真實桌面視窗操作納入自動化 UI test，後續補 cross-platform launcher coverage。
+- `install-local.ps1 -ForceReinstall` 的 quality gate 已通過，但本次 Codex 程序持有舊 plugin cache 鎖，Windows 拒絕替換 cache；plugin registry 仍指向 `D:\coart`。若新 task 仍讀不到更新後技能，完整退出 Codex Desktop 後重新執行該命令。
+
+### 本次驗證
+
+- `npm run quality`：通過；13/13 tests、Vite build、stdio MCP probe、Streamable HTTP probe 與 Chromium widget loader smoke 均通過。
+- MCP probe：13 個 tools，Widget `ui://widget/coart/canvas-v0-2-7.html`，inline HTML `2,865,039` bytes。
+- Widget smoke：`mounted: true`、`canvasReady: true`，Chrome 實際掛載 React/Fabric.js。
+
 ## 交付內容
 
 - 可安裝的 Codex plugin manifest。
 - MCP Native Widget server。
-- React + tldraw 畫布。
+- React + Fabric.js 畫布。
 - AI 圖片、AI HTML、AI Slides 與標註工作流。
 - v2 manifest、per-page snapshot、shared records 與相容回復 snapshot。
 - v1 snapshot 相容讀取與保存時遷移。
@@ -14,7 +58,7 @@
 - stdio 與 Streamable HTTP 兩種 MCP transport。
 - 公開 GitHub marketplace 與本機 Codex 安裝流程。
 - 三個 Codex skills。
-- 前端全面改為嚴格 TypeScript/TSX，集中 bridge、storage、prompt 與 tldraw shape 型別。
+- 前端全面改為嚴格 TypeScript/TSX，集中 bridge、storage、prompt 與 Fabric/Coart record 型別。
 - 低於 4 MiB 的直接自包含 Widget HTML，不在 runtime 重建 document。
 - 以公開 Cowart 功能說明作 clean-room 對照，保留 Coart 自有名稱、schema、UI 文案與資產；差異化缺口已寫入 `todos.md`，未複製參考專案程式碼。
 - 分析、架構、規格、計畫、TODO、測試、Agent 團隊、追蹤矩陣與啟動提示詞。
@@ -63,10 +107,10 @@
 - page asset lazy loading 尚未完成；目前讀取時會組合完整 snapshot。
 - image record deletion protection 尚未提供刪除／回收流程；v2 manifest 先將現有資產標記為 protected，且沒有自動刪檔。
 - Slides viewer 以 HTML slide 為主，圖片 slide 與完整匯出留待後續版本。
-- tldraw 與 MCP ext-apps 版本更新時，可能需要調整 API 相容性。
+- Fabric.js 與 MCP ext-apps 版本更新時，可能需要調整 API 相容性。
 - Production bundle 的主要 JS 約 2.44 MB；最終 Widget HTML 約 2.86 MB，直接經 MCP resource 傳送，不再使用 gzip/base64 runtime loader。4 MiB 是專案回歸防護線，不代表 Apps SDK 公布的固定限制。
 - Widget 注入固定使用外層最後一個 `</head>`，主 bundle 使用 inline module timing，並以 single-bundle build 消除 `ui://` 資源無法追載的 lazy chunk。
-- Headless Chromium smoke 已確認直接 HTML 實際掛載 `.coart-app`、tldraw container；Windows 在最後一次 host 驗收時拒絕桌面擷取（Win32 error 5），因此以 Codex host log、tool call continuity 與 headless 像素渲染交叉驗證，未把 `PrintWindow`（無法擷取 detached webview surface）的灰色 placeholder 當成失敗證據。
+- Headless Chromium smoke 已確認直接 HTML 實際掛載 `.coart-app`、Fabric canvas；Windows 在最後一次 host 驗收時拒絕桌面擷取（Win32 error 5），因此以 Codex host log、tool call continuity 與 headless 像素渲染交叉驗證，未把 `PrintWindow`（無法擷取 detached webview surface）的灰色 placeholder 當成失敗證據。
 - `codex review --uncommitted` 對 53-file 初始 repo 的全量 review 在 184 秒逾時，未產生可用報告；改採針對 storage/manifest 提交協定的人工審查，並修正內容世代原子性與損壞 fallback 依賴問題。
 - TypeScript 已涵蓋前端與 MCP/scripts/tests；前端 `tsc --noEmit` 嚴格檢查，Node 層由 `tsconfig.node.json` 檢查，MCP 入口由 Node type stripping 直接執行 `.ts`。
 - 目前已開啟的舊 Widget 實例仍可能持有舊版 bundle 與 timer；bridge 重啟不會清掉已在 Codex renderer 中執行的舊 JavaScript，需關閉／重新載入舊 task 或完整重啟 Codex 才能回收。
