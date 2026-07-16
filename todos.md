@@ -51,6 +51,8 @@
 - [x] Widget 內 follow-up 直接送入 Codex 對話；standalone editor 改以 project-local pending request 佇列取代剪貼簿。
 - [x] `get_coart_pending_request`／`clear_coart_pending_request` 工具與 token-protected `/api/follow-up` bridge。
 - [x] `update_coart_image` 保留既有 image shape 的 id、位置與尺寸，並保留舊資產供回復。
+- [x] AI 圖片框提供 4:3、3:4、9:16、16:9 與 1:1 比例預設，建立時預設保存 2K 解析度。
+- [x] AI 圖片生成面板支援 2K／4K 解析度選擇，prompt 帶出比例與對應像素尺寸。
 
 ## 下一版（v0.2）
 

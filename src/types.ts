@@ -1,8 +1,11 @@
 export type CoartKind = 'ai-image' | 'ai-html' | 'slides'
+export type ImageResolution = '2K' | '4K'
 
 export interface CoartShapeMeta {
   coartKind?: CoartKind
   coartVersion?: number
+  coartAspectRatio?: string
+  coartResolution?: ImageResolution
   [key: string]: unknown
 }
 
@@ -234,6 +237,7 @@ export interface ImagePromptArgs {
   shape: PromptShape
   pageId: string
   references?: PromptReference[]
+  resolution?: ImageResolution
 }
 
 export interface HtmlPromptArgs extends ImagePromptArgs {}

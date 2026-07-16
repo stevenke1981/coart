@@ -190,7 +190,7 @@ button { cursor: pointer; }
 }
 .coart-panel textarea:focus { border-color: #6d5ef7; box-shadow: 0 0 0 3px rgba(109, 94, 247, .12); }
 .coart-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; font-size: 12px; font-weight: 650; }
-.coart-field input { width: 72px; padding: 7px 8px; border-radius: 8px; border: 1px solid color-mix(in srgb, currentColor 14%, transparent); background: transparent; color: inherit; }
+.coart-field input, .coart-field select { width: 88px; padding: 7px 8px; border-radius: 8px; border: 1px solid color-mix(in srgb, currentColor 14%, transparent); background: transparent; color: inherit; }
 .coart-upload { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; font-weight: 650; color: #6d5ef7; cursor: pointer; }
 .coart-upload input { display: none; }
 .coart-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }

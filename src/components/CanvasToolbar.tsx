@@ -18,7 +18,7 @@ import {
   Type
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { ASPECT_PRESETS, COART_KINDS, DEFAULT_HTML_SIZE, DEFAULT_SLIDES_SIZE } from '../constants'
+import { ASPECT_PRESETS, COART_KINDS, DEFAULT_HTML_SIZE, DEFAULT_IMAGE_RESOLUTION, DEFAULT_SLIDES_SIZE } from '../constants'
 import { createCoartShapeId } from '../lib/ferricCanvas'
 import type { AnyCanvasShape, CanvasTool, CoartKind, EditorLike } from '../types'
 import { CanvasStylePanel } from './CanvasStylePanel'
@@ -28,6 +28,7 @@ interface FrameOptions {
   width: number
   height: number
   name: string
+  aspectRatio?: string
 }
 
 function viewportPoint(editor: EditorLike): { x: number; y: number } {
@@ -35,7 +36,7 @@ function viewportPoint(editor: EditorLike): { x: number; y: number } {
   return { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 }
 }
 
-function createFrame(editor: EditorLike, { kind, width, height, name }: FrameOptions): void {
+function createFrame(editor: EditorLike, { kind, width, height, name, aspectRatio }: FrameOptions): void {
   const center = viewportPoint(editor)
   const id = createCoartShapeId()
   editor.createShape({
@@ -44,7 +45,13 @@ function createFrame(editor: EditorLike, { kind, width, height, name }: FrameOpt
     x: center.x - width / 2,
     y: center.y - height / 2,
     props: { w: width, h: height, name },
-    meta: { coartKind: kind, coartVersion: 1 }
+    meta: {
+      coartKind: kind,
+      coartVersion: 1,
+      ...(kind === COART_KINDS.AI_IMAGE
+        ? { coartAspectRatio: aspectRatio, coartResolution: DEFAULT_IMAGE_RESOLUTION }
+        : {})
+    }
   })
   window.setTimeout(() => editor.select(id), 0)
 }
@@ -78,7 +85,7 @@ export function CanvasToolbar({ editor, ready, selectedShape, aspectId, onAspect
   }, [editor])
 
   if (!editor) return null
-  const preset = ASPECT_PRESETS.find((item) => item.id === aspectId) || ASPECT_PRESETS[2]
+  const preset = ASPECT_PRESETS.find((item) => item.id === aspectId) || ASPECT_PRESETS[0]
   const hasSelection = selectionCount > 0
 
   const activateTool = (tool: CanvasTool): void => {
@@ -134,7 +141,7 @@ export function CanvasToolbar({ editor, ready, selectedShape, aspectId, onAspect
           </select>
           <button
             disabled={!ready}
-            onClick={() => createFrame(editor, { kind: COART_KINDS.AI_IMAGE, width: preset.width, height: preset.height, name: `AI 圖片 ${preset.id}` })}
+            onClick={() => createFrame(editor, { kind: COART_KINDS.AI_IMAGE, width: preset.width, height: preset.height, name: `AI 圖片 ${preset.id}`, aspectRatio: preset.id })}
             title="建立 AI 圖片框"
           ><ImagePlus size={20} /></button>
         </div>

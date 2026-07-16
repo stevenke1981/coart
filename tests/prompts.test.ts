@@ -9,6 +9,18 @@ test('image prompt includes shape contract and insertion tool', () => {
   assert.match(output, /shape:test/)
   assert.match(output, /1024 × 576/)
   assert.match(output, /insert_coart_image/)
+  assert.match(output, /目標解析度：2K/)
+})
+
+test('image prompt supports 4K output while preserving the selected ratio', () => {
+  const output = imagePrompt({
+    userPrompt: '直式商品主視覺',
+    shape: { id: 'shape:portrait', props: { w: 576, h: 1024 }, meta: { coartAspectRatio: '9:16' } },
+    pageId: 'page:1',
+    resolution: '4K'
+  })
+  assert.match(output, /目標比例：9:16/)
+  assert.match(output, /目標解析度：4K（2304 × 4096 px）/)
 })
 
 test('html and slides prompts name their insertion workflow', () => {

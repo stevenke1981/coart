@@ -20,7 +20,7 @@ export default function App() {
   const [editor, setEditor] = useState<EditorLike | null>(null)
   const [canvasReady, setCanvasReady] = useState(false)
   const [selectedShape, setSelectedShape] = useState<AnyCanvasShape | null>(null)
-  const [aspectId, setAspectId] = useState('3:4')
+  const [aspectId, setAspectId] = useState('4:3')
   const [status, setStatus] = useState('')
   const [slides, setSlides] = useState<CoartHtmlShape[]>([])
   const statusTimerRef = useRef<number | undefined>(undefined)

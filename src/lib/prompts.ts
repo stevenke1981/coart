@@ -5,9 +5,16 @@ import type {
   PromptReference,
   SlidesPromptArgs
 } from '../types'
+import type { ImageResolution } from '../types'
 
 function ratio(width: number, height: number): string {
   return `${width}:${height} (${(width / height).toFixed(4)})`
+}
+
+function resolutionPixels(width: number, height: number, resolution: ImageResolution): string {
+  const longEdge = resolution === '4K' ? 4096 : 2048
+  const scale = longEdge / Math.max(width, height)
+  return `${Math.round(width * scale)} × ${Math.round(height * scale)} px`
 }
 
 function referenceLines(references: PromptReference[] = []): string {
@@ -15,9 +22,10 @@ function referenceLines(references: PromptReference[] = []): string {
   return `\n參考圖片（已保存到目前專案）：\n${references.map((item) => `- ${item.assetPathRelativeToProject || item.assetPath}`).join('\n')}`
 }
 
-export function imagePrompt({ userPrompt, shape, pageId, references = [] }: ImagePromptArgs): string {
+export function imagePrompt({ userPrompt, shape, pageId, references = [], resolution = '2K' }: ImagePromptArgs): string {
   const width = shape.props?.w || 512
   const height = shape.props?.h || 512
+  const targetRatio = shape.meta?.coartAspectRatio || ratio(width, height)
   const existingImage = shape.type === 'image' && shape.meta?.coartKind !== 'ai-image'
   return [
     `[@coart](plugin://coart@personal) ${existingImage ? '編輯 Coart 圖片' : '生成圖片'}`,
@@ -27,7 +35,8 @@ export function imagePrompt({ userPrompt, shape, pageId, references = [] }: Imag
     `目標 pageId：${pageId}`,
     `${existingImage ? '目標圖片' : '目標 AI 圖片框'} shapeId：${shape.id}`,
     `目標尺寸：${width} × ${height} canvas units`,
-    `目標比例：${ratio(width, height)}`,
+    `目標比例：${targetRatio}`,
+    `目標解析度：${resolution}（${resolutionPixels(width, height, resolution)}）`,
     '請依此比例構圖，避免事後裁切或拉伸。',
     '使用目前可用的圖片生成能力產生最終 bitmap。',
     '這是 Codex 對話內的直接工作流；不要要求使用者複製或貼回提示詞。',

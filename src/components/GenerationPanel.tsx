@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Paperclip, Send, X } from 'lucide-react'
-import { COART_KINDS } from '../constants'
+import { COART_KINDS, DEFAULT_IMAGE_RESOLUTION, IMAGE_RESOLUTION_PRESETS } from '../constants'
 import { fileToDataUrl } from '../lib/dataUrl'
 import { saveReferenceImage, sendFollowUpMessage } from '../lib/coartClient'
 import { htmlPrompt, imagePrompt, slidesPrompt } from '../lib/prompts'
-import type { AnyCanvasShape, EditorLike, PromptShape } from '../types'
+import type { AnyCanvasShape, EditorLike, ImageResolution, PromptShape } from '../types'
 
 type GenerationMode = 'image' | 'html' | 'slides'
 
@@ -27,8 +27,12 @@ export function GenerationPanel({ editor, selectedShape, onStatus }: GenerationP
   const [prompt, setPrompt] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [slideCount, setSlideCount] = useState(5)
+  const [resolution, setResolution] = useState<ImageResolution>(DEFAULT_IMAGE_RESOLUTION)
   const [busy, setBusy] = useState(false)
   const mode = modeForShape(selectedShape)
+  useEffect(() => {
+    setResolution(selectedShape?.meta?.coartResolution || DEFAULT_IMAGE_RESOLUTION)
+  }, [selectedShape?.id, selectedShape?.meta?.coartResolution])
   const title = useMemo(() => (mode ? {
     image: selectedShape?.type === 'image' && selectedShape.meta?.coartKind !== COART_KINDS.AI_IMAGE ? '編輯 Coart 圖片' : '生成 AI 圖片',
     html: '生成 AI HTML',
@@ -62,7 +66,8 @@ export function GenerationPanel({ editor, selectedShape, onStatus }: GenerationP
         shape: selectedShape as PromptShape,
         pageId,
         references,
-        slideCount
+        slideCount,
+        resolution
       }
       const message = mode === 'image'
         ? imagePrompt(args)
@@ -93,6 +98,13 @@ export function GenerationPanel({ editor, selectedShape, onStatus }: GenerationP
         onChange={(event) => setPrompt(event.target.value)}
         placeholder={mode === 'slides' ? '描述整套簡報的主題、對象、風格與內容…' : '描述要生成的內容、風格、構圖與文字…'}
       />
+      {mode === 'image' && (
+        <label className="coart-field">輸出解析度
+          <select value={resolution} onChange={(event) => setResolution(event.target.value as ImageResolution)}>
+            {IMAGE_RESOLUTION_PRESETS.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+      )}
       {mode === 'slides' && (
         <label className="coart-field">頁數
           <input type="number" min="1" max="30" value={slideCount} onChange={(event) => setSlideCount(Number(event.target.value) || 1)} />

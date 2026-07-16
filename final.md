@@ -1,5 +1,16 @@
 # Coart v0.2.8 Reliability Delivery
 
+## 2026-07-17 AI 圖片框比例與解析度
+
+- AI 圖片框比例預設整理為 4:3、3:4、9:16、16:9，並保留 1:1；建立時保存 `coartAspectRatio` 與預設 `coartResolution: 2K` metadata。
+- 生成面板新增 2K／4K 輸出解析度選擇；圖片 prompt 會依框線比例帶出 2K 或 4K 的目標像素尺寸，避免生成結果比例不一致。
+- 更新 prompt 型別、回歸測試與解析度控制項樣式；未改動專案既有 canvas 資產或其他工作區變更。
+
+### 本次驗證
+
+- `npm run check`、`npm run typecheck`、`npm test`（18/18）、`npm run build` 與 `npm run probe:widget` 全部通過。
+- 建置仍有既有的 Vite bundle 大小警告（主要 JS 約 795 kB），不影響本次功能。
+
 ## 2026-07-16 Codex 右側面板模式修正
 
 - 修正 `sidebar` 只寫入自訂偏好、卻沒有觸發 Codex host 面板切換的問題。

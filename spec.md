@@ -34,7 +34,7 @@
 
 ### AI slots
 
-- AI image 預設 3:4，可選 1:1、4:3、16:9、9:16。
+- AI image 預設 4:3，可選 3:4、9:16、16:9 與 1:1；生成解析度預設 2K，可調整為 4K。
 - AI HTML 固定預設 1024×576。
 - Slides 外框預設 1048×600。
 - slot 使用 frame + `meta.coartKind`，結果使用一般 image 或 `coart-html` shape。
