@@ -1,8 +1,13 @@
 # Coart v0.2.7 Reliability Delivery
 
+## 2026-07-16 Codex 任務側邊欄預設
+
+- 將 MCP server instructions、Coart open-canvas skill 與 README 統一為 `render_coart_canvas` 的 `sidebar` 預設，讓 Codex 任務直接把畫布放在側邊欄。
+- 保留明確 `displayMode: "inline"` 的對話內嵌路徑，以及舊 `fullscreen` 的 inline fallback。
+
 ## 2026-07-16 對話內圖片編輯與更新
 
-- 開啟畫布的建議流程改為 `render_coart_canvas` + `displayMode: "inline"`，Generation／annotation controls 透過 MCP Apps `sendMessage` 直接把工作送入目前 Codex 對話，不再要求複製或貼回提示詞。
+- Generation／annotation controls 透過 MCP Apps `sendMessage` 直接把工作送入目前 Codex 對話，不再要求複製或貼回提示詞；畫布預設顯示於 Codex 任務側邊欄，明確要求時才使用 `displayMode: "inline"`。
 - standalone editor 的 follow-up 改寫入 `canvas/coart-follow-up.json`，新增 FIFO `get_coart_pending_request`／`clear_coart_pending_request` 與 `/api/follow-up`；同一 project 的 enqueue／clear 以 mutex 序列化，讓使用者回到對話後以「繼續處理」取回指令，不需要剪貼簿。
 - 新增 `update_coart_image`：對既有 image shape 建立新 project-local asset，保留 shape id、位置、顯示尺寸與舊資產，適合 Codex 直接回寫圖片修改結果。
 - 更新 Coart image edit／generation／open canvas skills、README、MCP instructions 與 default prompt，明確要求 direct conversation workflow。

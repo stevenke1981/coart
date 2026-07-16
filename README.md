@@ -40,9 +40,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-local.ps1
 Open the Coart canvas for this project.
 ```
 
-開啟畫布的預設流程是呼叫 `render_coart_canvas` 並指定 `displayMode: "inline"`，讓畫布控制列與 Codex 對話共用 MCP Apps `sendMessage` bridge。你可以直接在畫布輸入修改內容，Coart 會把 follow-up 送入目前對話，Codex 產生新圖後可直接呼叫 `update_coart_image` 回寫既有圖片；不需要複製或貼回提示詞。所有 snapshot 與圖片都寫入 `<projectDir>/canvas/`，原始圖片資產會保留。
+開啟畫布的預設流程是呼叫 `render_coart_canvas` 並指定 `displayMode: "sidebar"`，讓 Coart 顯示在 Codex 任務側邊欄。你可以直接在畫布輸入修改內容，Coart 會把 follow-up 送入目前對話，Codex 產生新圖後可直接呼叫 `update_coart_image` 回寫既有圖片；不需要複製或貼回提示詞。所有 snapshot 與圖片都寫入 `<projectDir>/canvas/`，原始圖片資產會保留。
 
-若明確要求獨立 Chrome／Edge 視窗，仍可呼叫 `open_coart_editor`。該視窗會將 follow-up 寫入 project-local `canvas/coart-follow-up.json`；回到對話後說「繼續處理」，Codex 呼叫 `get_coart_pending_request` 讀取並處理，再以 `clear_coart_pending_request` 清除，整個流程不需要剪貼簿。`render_coart_canvas` 未指定模式時仍可使用 sidebar；對話內直接編輯建議指定 `inline`。Widget bridge 只向 MCP Apps SDK 宣告標準的 inline 能力，sidebar 作為 Codex host 的放置偏好傳遞。
+若明確要求獨立 Chrome／Edge 視窗，仍可呼叫 `open_coart_editor`。該視窗會將 follow-up 寫入 project-local `canvas/coart-follow-up.json`；回到對話後說「繼續處理」，Codex 呼叫 `get_coart_pending_request` 讀取並處理，再以 `clear_coart_pending_request` 清除，整個流程不需要剪貼簿。`render_coart_canvas` 未指定模式時也會使用 sidebar；只有明確要求對話內嵌時才指定 `inline`。Widget bridge 只向 MCP Apps SDK 宣告標準的 inline 能力，sidebar 作為 Codex host 的放置偏好傳遞。
 
 Widget autosave 會依序保存 snapshot、selection 與 view state，避免同一個 MCP proxy 同時處理三個寫入請求而回傳 `MCP error -32000`。
 

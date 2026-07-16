@@ -18,12 +18,12 @@ Coart v0.2.7 is TypeScript-first:
 
 ## Default open procedure
 
-1. Call `render_coart_canvas` with the absolute active project path and `displayMode: "inline"` so the canvas and its follow-up controls stay in this Codex conversation:
+1. Call `render_coart_canvas` with the absolute active project path and `displayMode: "sidebar"` so the canvas opens in the Codex task sidebar:
 
    ```json
    {
      "projectDir": "C:/work/my-project",
-     "displayMode": "inline"
+     "displayMode": "sidebar"
    }
    ```
 
@@ -34,16 +34,16 @@ Coart v0.2.7 is TypeScript-first:
 
 ## Sidebar Widget (default) and inline fallback
 
-Use `render_coart_canvas` for the normal in-task canvas. Inline is recommended when the user wants direct conversation editing:
+Use `render_coart_canvas` with `displayMode: "sidebar"` for the normal in-task canvas. Use inline only when the user explicitly wants the canvas embedded in the conversation:
 
 ```json
 {
   "projectDir": "C:/work/my-project",
-  "displayMode": "inline"
+  "displayMode": "sidebar"
 }
 ```
 
-Use `"sidebar"` when the user prefers a separate host placement. For either mode, check `codex features list` first. Both `apps ... true` and `enable_mcp_apps ... true` are required. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. The expected v0.2.7 resource URI is `ui://widget/coart/canvas-v0-2-7.html`.
+Use `"inline"` only for an explicit conversation-embedded request. For either mode, check `codex features list` first. Both `apps ... true` and `enable_mcp_apps ... true` are required. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. The expected v0.2.7 resource URI is `ui://widget/coart/canvas-v0-2-7.html`.
 
 ## Recovery
 

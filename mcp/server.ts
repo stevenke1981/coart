@@ -28,7 +28,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifest = JSON.parse(readFileSync(join(root, '.codex-plugin', 'plugin.json'), 'utf8'))
 export function createCoartServer() {
   const server = new McpServer({ name: manifest.name, version: manifest.version }, {
-    instructions: 'For direct in-conversation editing, use render_coart_canvas with displayMode inline. Use get_coart_selection and get_coart_latest_image to target the active image, then use update_coart_image for an existing image or insert_coart_image for a new result. If the user explicitly uses the standalone editor, read get_coart_pending_request after they return to the conversation and clear it after success; never ask them to copy or paste a prompt.'
+    instructions: 'For the default Codex host placement, use render_coart_canvas with displayMode sidebar (or omit displayMode); use displayMode inline only when the user explicitly wants the canvas in the conversation. Use get_coart_selection and get_coart_latest_image to target the active image, then use update_coart_image for an existing image or insert_coart_image for a new result. If the user explicitly uses the standalone editor, read get_coart_pending_request after they return to the conversation and clear it after success; never ask them to copy or paste a prompt.'
   })
 
 const targetSchema = {
