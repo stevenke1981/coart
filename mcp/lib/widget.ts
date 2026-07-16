@@ -156,7 +156,7 @@ function bridgeScript() {
           await ready;
           if (request?.mode === 'sidebar') {
             publish({ displayModePreference: 'sidebar' });
-            return { mode: 'sidebar' };
+            return app.requestDisplayMode({ mode: 'fullscreen' });
           }
           const mode = ['fullscreen', 'pip'].includes(request?.mode) ? request.mode : 'inline';
           return app.requestDisplayMode({ mode });
@@ -176,24 +176,22 @@ function bridgeScript() {
         canvasDir: target.canvasDir,
         toolResponseMetadata: metadata
       });
-      if (payload.preferredDisplayMode && app?.requestDisplayMode) {
+      if (payload.hostDisplayMode && app?.requestDisplayMode) {
         if (payload.preferredDisplayMode === 'sidebar') {
           publish({ displayModePreference: 'sidebar' });
-        } else {
-          const mode = ['fullscreen', 'pip'].includes(payload.preferredDisplayMode)
-            ? payload.preferredDisplayMode
-            : 'inline';
-          app.requestDisplayMode({ mode }).catch(() => {});
         }
+        const mode = ['fullscreen', 'pip'].includes(payload.hostDisplayMode)
+          ? payload.hostDisplayMode
+          : 'inline';
+        app.requestDisplayMode({ mode }).catch(() => {});
       }
     };
     // Let the Apps SDK measure the final document after Codex has attached its
     // detached widget surface. A one-shot, fixed height can become stale when
     // the conversation view is restored or its width changes.
-    // MCP Apps 1.7 only defines inline/fullscreen/pip. Codex's sidebar is a
-    // host-level placement preference carried by the tool result; advertising
-    // the non-standard value here makes ui/initialize fail before saving works.
-    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline'] }, { autoResize: true });
+    // MCP Apps 1.7 only defines inline/fullscreen/pip. Coart's sidebar maps
+    // to standard fullscreen so Codex can place the widget in its right panel.
+    app = new ext.App({ name: 'coart', version: '${manifest.version}' }, { availableDisplayModes: ['inline', 'fullscreen'] }, { autoResize: true });
     // MCP Apps hosts send ui/resource-teardown before unmounting a view, for
     // example when the user switches conversations. Register the handler
     // before connect() so the SDK can answer the lifecycle request cleanly.

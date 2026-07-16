@@ -26,8 +26,8 @@
 - [x] MCP Widget 直接自包含 HTML、外層 head 注入與 Chromium mount smoke
 - [x] 前端 JavaScript 遷移為嚴格 TypeScript/TSX
 - [x] tldraw -> Fabric.js -> Ferric Canvas 畫布遷移：inline 與 standalone 共用 Coart facade，保留 Coart schema/store 與 project-local assets
-- [x] Ferric Widget 支援 inline／sidebar 顯示模式；保留 fullscreen 請求的 inline 相容 fallback
-- [x] sidebar 成為 render 預設；標準 MCP Apps 初始化只宣告 inline，避免 host 專用 mode 造成 bridge handshake 失敗
+- [x] Ferric Widget 支援 inline／sidebar 語意；sidebar 映射為 MCP Apps 標準 fullscreen，讓 Codex 放入右側面板
+- [x] sidebar 成為 render 預設；Widget 初始化宣告標準 inline／fullscreen，避免把 host 專用 mode 傳入 MCP Apps schema
 - [x] autosave 序列化 snapshot／selection／view 寫入，並從 toolOutput、widgetData、toolInput 恢復 project target
 - [x] Ferric SVG scene 框線拖曳工具與 Coart DOM 文字編輯（新增即進入編輯、既有文字可雙擊）
 - [x] Widget hydration 完成前停用 autosave，避免初始空白快照覆蓋既有畫布

@@ -54,13 +54,17 @@ try {
   if (rendered.structuredContent?.requestedDisplayMode !== 'sidebar') {
     throw new Error('render_coart_canvas must report sidebar as the default request.')
   }
+  if (rendered.structuredContent?.hostDisplayMode !== 'fullscreen') {
+    throw new Error('render_coart_canvas must map sidebar to standard fullscreen host mode.')
+  }
 
   const inlineRendered: any = await client.callTool({
     name: 'render_coart_canvas',
     arguments: { projectDir: process.cwd(), displayMode: 'inline' }
   })
   if (inlineRendered.structuredContent?.preferredDisplayMode !== 'inline'
-    || inlineRendered.structuredContent?.requestedDisplayMode !== 'inline') {
+    || inlineRendered.structuredContent?.requestedDisplayMode !== 'inline'
+    || inlineRendered.structuredContent?.hostDisplayMode !== 'inline') {
     throw new Error('render_coart_canvas must preserve an explicit inline request.')
   }
 
@@ -74,16 +78,22 @@ try {
   if (sidebarRendered.structuredContent?.requestedDisplayMode !== 'sidebar') {
     throw new Error('render_coart_canvas did not retain the requested sidebar display mode for diagnostics.')
   }
+  if (sidebarRendered.structuredContent?.hostDisplayMode !== 'fullscreen') {
+    throw new Error('render_coart_canvas must map explicit sidebar to standard fullscreen host mode.')
+  }
 
   const fullscreenRendered: any = await client.callTool({
     name: 'render_coart_canvas',
     arguments: { projectDir: process.cwd(), displayMode: 'fullscreen' }
   })
-  if (fullscreenRendered.structuredContent?.preferredDisplayMode !== 'inline') {
-    throw new Error('render_coart_canvas must fall back to inline for legacy fullscreen requests.')
+  if (fullscreenRendered.structuredContent?.preferredDisplayMode !== 'sidebar') {
+    throw new Error('render_coart_canvas must preserve fullscreen as the right-panel placement.')
   }
   if (fullscreenRendered.structuredContent?.requestedDisplayMode !== 'fullscreen') {
     throw new Error('render_coart_canvas did not retain the legacy fullscreen request for diagnostics.')
+  }
+  if (fullscreenRendered.structuredContent?.hostDisplayMode !== 'fullscreen') {
+    throw new Error('render_coart_canvas must preserve fullscreen host mode.')
   }
 
   const resources = await client.listResources()
@@ -102,8 +112,9 @@ try {
   const decodedHtml = decodeWidgetHtml(html)
   if (!decodedHtml.includes('window.coartMcp')) throw new Error('Widget host bridge was not injected.')
   if (!/app\.onteardown\s*=/.test(decodedHtml)) throw new Error('Widget bridge teardown handler was not registered.')
-  if (!decodedHtml.includes("availableDisplayModes: ['inline']")) throw new Error('Widget must advertise the standard inline fallback mode.')
+  if (!decodedHtml.includes("availableDisplayModes: ['inline', 'fullscreen']")) throw new Error('Widget must advertise standard inline and fullscreen modes.')
   if (decodedHtml.includes("availableDisplayModes: ['inline', 'sidebar']")) throw new Error('Widget must not send the non-standard sidebar mode during ui/initialize.')
+  if (!decodedHtml.includes("requestDisplayMode({ mode: 'fullscreen' })")) throw new Error('Widget must map sidebar requests to standard fullscreen mode.')
   if (!decodedHtml.includes('widgetData: payload')) throw new Error('Widget bridge must publish tool data for project target recovery.')
   if (!decodedHtml.includes('{ autoResize: true }') || decodedHtml.includes('notifyHostSize') || decodedHtml.includes('layoutPulseTimer = setInterval')) {
     throw new Error('Widget bridge must delegate intrinsic sizing to the Apps SDK without a fixed-size override or recurring layout pulse.')

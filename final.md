@@ -1,9 +1,21 @@
-# Coart v0.2.7 Reliability Delivery
+# Coart v0.2.8 Reliability Delivery
+
+## 2026-07-16 Codex 右側面板模式修正
+
+- 修正 `sidebar` 只寫入自訂偏好、卻沒有觸發 Codex host 面板切換的問題。
+- Coart sidebar 現在映射到 MCP Apps 標準 `fullscreen` request；Widget 宣告 `inline`／`fullscreen`，Codex 可將畫布放在畫面右側面板。
+- 明確 `displayMode: "inline"` 仍維持對話內嵌；`render_coart_canvas` 的 structured content 同時保留 `requestedDisplayMode` 與 `hostDisplayMode` 供診斷。
+- 版本升至 `0.2.8`，避免 Codex／MCP widget cache 重用 v0.2.7 的舊 bridge。
+
+### 本次驗證
+
+- `npm run check`、`npm test`（17/17）、`npm run build`、`npm run probe:mcp`、`npm run probe:http` 與 `npm run probe:widget` 全部通過。
+- `probe:mcp` 已驗證 sidebar 預設與明確 sidebar 都輸出標準 `hostDisplayMode: "fullscreen"`，明確 inline 維持 `hostDisplayMode: "inline"`；Codex Desktop 實際右側面板仍需重新安裝／重新載入 `coart@coart-public` v0.2.8，並在新的 task 呼叫 `render_coart_canvas` 做人工確認。
 
 ## 2026-07-16 Codex 任務側邊欄預設
 
 - 將 MCP server instructions、Coart open-canvas skill 與 README 統一為 `render_coart_canvas` 的 `sidebar` 預設，讓 Codex 任務直接把畫布放在側邊欄。
-- 保留明確 `displayMode: "inline"` 的對話內嵌路徑，以及舊 `fullscreen` 的 inline fallback。
+- 保留明確 `displayMode: "inline"` 的對話內嵌路徑；sidebar 由標準 fullscreen host mode 實作。
 
 ## 2026-07-16 對話內圖片編輯與更新
 

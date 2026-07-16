@@ -41,7 +41,7 @@ npm run build
 npm run probe:mcp
 ```
 
-自動啟動 stdio MCP server、驗證 16 個工具、呼叫 render tool、列出並讀取 `ui://widget/coart/canvas-v0-2-7.html`，同時確認 Widget 已 inline、Ferric Canvas SVG scene 已掛載且 host bridge 存在。
+自動啟動 stdio MCP server、驗證 16 個工具、呼叫 render tool、列出並讀取版本化 Widget resource，確認 sidebar 預設映射到標準 fullscreen、明確 inline 保持 inline、Ferric Canvas SVG scene 已掛載且 host bridge 存在。
 
 ## HTTP MCP smoke test
 
@@ -65,6 +65,21 @@ npm run probe:http
 - 多選形狀執行「按標註修改」。
 - 重開 Widget，確認形狀、camera 與 selection 可恢復。
 - 測試深色／淺色 host theme。
+
+## 2026-07-16 v0.2.8 驗證紀錄
+
+工作目錄：`D:\\coart`
+
+| 指令 | 結果 | 證據 |
+| --- | --- | --- |
+| `npm run check` | PASS | Node/MCP TypeScript check exit 0 |
+| `npm test` | PASS | 17/17 tests passed |
+| `npm run build` | PASS | Vite production build completed |
+| `npm run probe:mcp` | PASS | 16 tools、`canvas-v0-2-8`、sidebar→fullscreen 與 inline assertions passed |
+| `npm run probe:http` | PASS | Streamable HTTP `/mcp`、16 tools passed |
+| `npm run probe:widget` | PASS | Chrome `mounted: true`、`canvasReady: true` |
+
+Coverage gap: Codex Desktop 的實際右側面板仍需在重新安裝 `coart@coart-public` v0.2.8、重開 Desktop／新 task 後人工確認；本機 probe 已驗證送出的標準 `fullscreen` request 與 Widget capabilities。
 
 ## 安全測試
 

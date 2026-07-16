@@ -66,7 +66,7 @@ canvas/
 
 Codex plugin 使用 stdio MCP；`open_coart_editor` 另外建立只監聽 `127.0.0.1` 的短生命週期 editor server，將 standalone Widget 與固定的 `projectDir` 綁定，並以 token 驗證 state／selection／view／reference API。ChatGPT Developer Mode 可透過 `npm run start:http` 啟動 Streamable HTTP `/mcp`，再以 HTTPS tunnel 暴露；這是遠端 MCP 連線，與本機外部編輯器的 loopback bridge 分開。
 
-MCP Widget 的預設放置偏好是 Codex host sidebar；MCP Apps SDK 初始化只宣告標準 inline fallback，避免把 host 專用的 sidebar 名稱送進標準 schema。Widget 會先保存 snapshot，再依序保存 selection 與 view，避免 proxy 併發寫入造成 `-32000`。
+MCP Widget 的預設放置語意是 Codex host sidebar；由於 MCP Apps 標準沒有 `sidebar` mode，Widget 初始化宣告標準 `inline`／`fullscreen`，並將 Coart 的 sidebar 請求映射到 `fullscreen`，讓 Codex 將畫布放入右側面板。Widget 會先保存 snapshot，再依序保存 selection 與 view，避免 proxy 併發寫入造成 `-32000`。
 
 ## 主要資料標記
 

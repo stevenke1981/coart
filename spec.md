@@ -25,7 +25,7 @@
 
 ### Canvas
 
-- 使用 Ferric Canvas WebAssembly engine 與受信任 SVG renderer；sidebar 預設 Widget、明確指定的 inline Widget 與外部 editor 共用同一個 Coart canvas facade。
+- 使用 Ferric Canvas WebAssembly engine 與受信任 SVG renderer；sidebar 預設 Widget 透過 MCP Apps 標準 fullscreen host mode 進入 Codex 右側面板，明確指定的 inline Widget 與外部 editor 共用同一個 Coart canvas facade。
 - 支援 pan、zoom、draw、arrow、text、image、frame 與可拖曳建立的 rectangle 框線。
 - 文字物件由 Ferric Scene renderer 顯示；新增後立即進入 Coart DOM editor，既有文字可直接雙擊修改，內容與位置會自動保存。
 - 自動保存，debounce 700ms。

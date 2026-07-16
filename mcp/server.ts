@@ -77,10 +77,12 @@ registerAppTool(server, 'render_coart_canvas', {
     widget: 'coart-canvas-widget',
     title: input.title || 'Coart Canvas',
     rendering: 'native-widget',
-    // Sidebar is the default Codex host placement. Keep explicit inline and
-    // legacy fullscreen requests on the standard inline MCP Apps path.
-    preferredDisplayMode: input.displayMode === 'inline' || input.displayMode === 'fullscreen' ? 'inline' : 'sidebar',
+    // Coart exposes `sidebar` as the user-facing placement name, while MCP
+    // Apps standardizes the host request as `fullscreen`. Codex maps that
+    // standard mode to its right-side task panel.
+    preferredDisplayMode: input.displayMode === 'inline' ? 'inline' : 'sidebar',
     requestedDisplayMode: input.displayMode || 'sidebar',
+    hostDisplayMode: input.displayMode === 'inline' ? 'inline' : 'fullscreen',
     projectDir: paths.projectDir,
     canvasDir: paths.canvasDir,
     staticDir: WIDGET_BUILD_DIR

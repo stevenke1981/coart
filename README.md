@@ -9,7 +9,7 @@ Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布
 - Codex 原生 MCP Widget（可直接在對話中編輯）與獨立 Coart 編輯器視窗。
 - `open_coart_editor` 以受 token 保護的 loopback HTTP bridge 開啟外部編輯器，狀態與圖片固定保存到目前專案的 `canvas/`。
 - `get_coart_latest_image` 與 `read_coart_asset` 以 MCP image content 將專案圖片讀回同一個 Codex 對話。
-- Ferric Canvas WebAssembly／SVG 無限畫布與本機開發模式；inline、sidebar 與外部編輯器共用同一個 Coart facade。
+- Ferric Canvas WebAssembly／SVG 無限畫布與本機開發模式；inline、Codex 右側 sidebar 與外部編輯器共用同一個 Coart facade。
 - 畫布工具支援拖曳建立框線，以及點擊新增可直接雙擊／輸入編輯的文字物件。
 - v2 manifest、per-page snapshot、相容回復副本、選取／視角與資產持久化。
 - v1 snapshot 自動相容，下一次保存遷移到 v2。
@@ -40,9 +40,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-local.ps1
 Open the Coart canvas for this project.
 ```
 
-開啟畫布的預設流程是呼叫 `render_coart_canvas` 並指定 `displayMode: "sidebar"`，讓 Coart 顯示在 Codex 任務側邊欄。你可以直接在畫布輸入修改內容，Coart 會把 follow-up 送入目前對話，Codex 產生新圖後可直接呼叫 `update_coart_image` 回寫既有圖片；不需要複製或貼回提示詞。所有 snapshot 與圖片都寫入 `<projectDir>/canvas/`，原始圖片資產會保留。
+開啟畫布的預設流程是呼叫 `render_coart_canvas` 並指定 `displayMode: "sidebar"`，讓 Coart 將標準 MCP Apps `fullscreen` host mode 請求給 Codex，顯示在右側任務面板。你可以直接在畫布輸入修改內容，Coart 會把 follow-up 送入目前對話，Codex 產生新圖後可直接呼叫 `update_coart_image` 回寫既有圖片；不需要複製或貼回提示詞。所有 snapshot 與圖片都寫入 `<projectDir>/canvas/`，原始圖片資產會保留。
 
-若明確要求獨立 Chrome／Edge 視窗，仍可呼叫 `open_coart_editor`。該視窗會將 follow-up 寫入 project-local `canvas/coart-follow-up.json`；回到對話後說「繼續處理」，Codex 呼叫 `get_coart_pending_request` 讀取並處理，再以 `clear_coart_pending_request` 清除，整個流程不需要剪貼簿。`render_coart_canvas` 未指定模式時也會使用 sidebar；只有明確要求對話內嵌時才指定 `inline`。Widget bridge 只向 MCP Apps SDK 宣告標準的 inline 能力，sidebar 作為 Codex host 的放置偏好傳遞。
+若明確要求獨立 Chrome／Edge 視窗，仍可呼叫 `open_coart_editor`。該視窗會將 follow-up 寫入 project-local `canvas/coart-follow-up.json`；回到對話後說「繼續處理」，Codex 呼叫 `get_coart_pending_request` 讀取並處理，再以 `clear_coart_pending_request` 清除，整個流程不需要剪貼簿。`render_coart_canvas` 未指定模式時也會使用 sidebar；只有明確要求對話內嵌時才指定 `inline`。Widget bridge 向 MCP Apps SDK 宣告標準的 `inline`／`fullscreen` 能力，並把 Coart sidebar 語意轉成 Codex 可執行的 fullscreen host request。
 
 Widget autosave 會依序保存 snapshot、selection 與 view state，避免同一個 MCP proxy 同時處理三個寫入請求而回傳 `MCP error -32000`。
 
@@ -74,7 +74,7 @@ Node.js 22.6+ 以 type stripping 直接執行 MCP entrypoint、tests 與 probe s
 
 ## Widget HTML 大小與自包含載入
 
-ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 現在直接傳送自包含 HTML；`npm run probe:mcp` 會檢查 sidebar 預設、inline fallback、資源大小與 bridge 內容，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/Ferric Canvas SVG scene 已掛載。外部編輯器沿用同一份自包含 HTML，但由受 token 保護的本機 loopback server 提供，不需要 MCP Apps renderer。
+ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 現在直接傳送自包含 HTML；`npm run probe:mcp` 會檢查 sidebar→fullscreen 預設、inline 路徑、資源大小與 bridge 內容，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/Ferric Canvas SVG scene 已掛載。外部編輯器沿用同一份自包含 HTML，但由受 token 保護的本機 loopback server 提供，不需要 MCP Apps renderer。
 
 MCP Apps 的[官方規格](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)要求 Widget resource 是有效 HTML5；[Apps SDK 文件](https://developers.openai.com/apps-sdk/build/mcp-server/)說明 CSP metadata 與 resource registration，但沒有公布固定 HTML byte 上限，實際 host 仍應在登入後的 Developer Mode 進行驗收。
 
