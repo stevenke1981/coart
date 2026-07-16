@@ -1,7 +1,7 @@
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #17161d;
-  background: #f7f7fb;
+  color: #171b24;
+  background: #f8fafc;
 }
 
 * { box-sizing: border-box; }
@@ -17,15 +17,33 @@ button, textarea, input, select { font: inherit; }
 button { cursor: pointer; }
 
 .coart-app { width: 100%; min-height: 640px; height: max(640px, 100vh); position: relative; overflow: hidden; }
-.coart-ferric-shell { width: 100%; height: 100%; min-height: 640px; position: relative; overflow: hidden; outline: none; background: #f7f7fb; touch-action: none; overscroll-behavior: none; }
+.coart-ferric-shell { width: 100%; height: 100%; min-height: 640px; position: relative; overflow: hidden; outline: none; background-color: #f8fafc; background-image: radial-gradient(circle, rgba(100,116,139,.16) 1px, transparent 1px); background-size: 20px 20px; touch-action: none; overscroll-behavior: none; }
+.coart-ferric-shell[data-tool="pan"] { cursor: grab; }
+.coart-ferric-shell[data-tool="pan"]:active { cursor: grabbing; }
+.coart-ferric-shell[data-tool="draw"], .coart-ferric-shell[data-tool="rectangle"] { cursor: crosshair; }
+.coart-ferric-shell[data-tool="text"] { cursor: text; }
 .coart-ferric-scene { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; pointer-events: none; }
 .coart-ferric-scene svg { display: block; width: 1280px; height: 720px; }
 .coart-ferric-overlay { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
-.coart-ferric-selection, .coart-ferric-draft { position: absolute; border: 2px solid #6d5ef7; border-radius: 4px; background: rgba(109,94,247,.06); }
-.coart-ferric-selection { background: transparent; box-shadow: 0 0 0 1px rgba(255,255,255,.8); }
+.coart-ferric-selection, .coart-ferric-draft { position: absolute; border: 2px solid #2563eb; border-radius: 3px; background: rgba(37,99,235,.06); }
+.coart-ferric-selection { background: transparent; box-shadow: 0 0 0 1px rgba(255,255,255,.9); }
+.coart-ferric-selection.is-member { border-width: 1px; opacity: .72; }
 .coart-ferric-draft { border-style: dashed; }
+.coart-marquee { position: absolute; border: 1px solid #2563eb; background: rgba(37,99,235,.08); }
+.coart-selection-transform { position: absolute; border: 1.5px solid #2563eb; pointer-events: none; }
+.coart-resize-handle, .coart-rotate-handle { position: absolute; z-index: 2; width: 10px; height: 10px; padding: 0; border: 1.5px solid #2563eb; border-radius: 2px; background: #fff; pointer-events: auto; }
+.coart-resize-handle.is-nw { left: -5px; top: -5px; cursor: nwse-resize; }
+.coart-resize-handle.is-n { left: 50%; top: -5px; transform: translateX(-50%); cursor: ns-resize; }
+.coart-resize-handle.is-ne { right: -5px; top: -5px; cursor: nesw-resize; }
+.coart-resize-handle.is-e { right: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.coart-resize-handle.is-se { right: -5px; bottom: -5px; cursor: nwse-resize; }
+.coart-resize-handle.is-s { left: 50%; bottom: -5px; transform: translateX(-50%); cursor: ns-resize; }
+.coart-resize-handle.is-sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
+.coart-resize-handle.is-w { left: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.coart-rotate-stem { position: absolute; left: 50%; top: -27px; width: 1px; height: 22px; background: #2563eb; }
+.coart-rotate-handle { left: 50%; top: -36px; transform: translateX(-50%); border-radius: 50%; cursor: grab; }
 .coart-ferric-draw-preview { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
-.coart-ferric-text-editor { position: absolute; z-index: 8; resize: both; min-width: 100px; min-height: 42px; padding: 5px; border: 2px solid #6d5ef7; border-radius: 5px; outline: none; background: rgba(255,255,255,.96); color: #17161d; font: 28px/1.2 Inter, "Segoe UI", sans-serif; }
+.coart-ferric-text-editor { position: absolute; z-index: 8; resize: both; min-width: 100px; min-height: 42px; padding: 5px; border: 2px solid #2563eb; border-radius: 5px; outline: none; background: rgba(255,255,255,.98); color: #17161d; font: 28px/1.2 Inter, "Segoe UI", sans-serif; }
 .coart-ferric-error { position: absolute; z-index: 20; left: 16px; bottom: 16px; max-width: min(620px, calc(100% - 32px)); padding: 8px 12px; border-radius: 10px; background: #842029; color: white; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
 
 .coart-canvas-chrome button,
@@ -51,18 +69,20 @@ button { cursor: pointer; }
   height: 48px;
   padding: 5px 7px;
   border: 1px solid rgba(26, 34, 48, .08);
-  border-radius: 0 0 16px 0;
-  background: rgba(237, 241, 247, .94);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .96);
   box-shadow: 0 8px 24px rgba(31, 42, 61, .08);
   backdrop-filter: blur(18px);
 }
+.coart-document-title { padding: 0 9px 0 6px; font-size: 13px; letter-spacing: -.01em; }
+.coart-page-label { padding: 0 9px; color: #475569; font-size: 12px; font-weight: 650; }
+.coart-save-status { padding-right: 5px; color: #94a3b8; font-size: 11px; }
 .coart-document-bar > button, .coart-more-wrap > button {
   width: 36px;
   height: 36px;
   border-radius: 10px;
 }
 .coart-document-bar button:hover, .coart-document-bar button.active { background: rgba(65, 118, 247, .11); color: #315fc2; }
-.coart-document-bar .coart-page-button { display: flex; width: auto; min-width: 92px; padding: 0 10px; gap: 8px; font-weight: 720; }
 .coart-document-divider, .coart-toolbar-divider { width: 1px; height: 24px; margin: 0 3px; background: rgba(37, 45, 59, .12); }
 .coart-more-wrap { position: relative; display: grid; place-items: center; }
 .coart-more-menu {
@@ -89,7 +109,7 @@ button { cursor: pointer; }
   display: flex;
   align-items: center;
   gap: 4px;
-  max-width: calc(100vw - 220px);
+  max-width: calc(100vw - 240px);
   min-height: 56px;
   padding: 6px;
   border: 1px solid rgba(26, 34, 48, .1);
@@ -98,12 +118,49 @@ button { cursor: pointer; }
   box-shadow: 0 14px 44px rgba(31, 42, 61, .18), 0 2px 6px rgba(31, 42, 61, .08);
   backdrop-filter: blur(18px);
 }
-.coart-toolbar button { width: 38px; height: 42px; border-radius: 10px; }
-.coart-toolbar button:hover, .coart-toolbar button.active { background: #4176f7; color: #fff; }
-.coart-toolbar .coart-annotate-button { display: flex; width: auto; min-width: 72px; padding: 0 9px; gap: 6px; font-size: 12px; font-weight: 720; }
-.coart-aspect-tool { display: flex; align-items: center; height: 42px; border: 1px solid rgba(37, 45, 59, .1); border-radius: 11px; overflow: hidden; }
-.coart-aspect-tool select { width: 50px; height: 100%; padding: 0 3px 0 7px; background: transparent; font-size: 11px; font-weight: 720; }
-.coart-aspect-tool button { border-radius: 0; }
+.coart-toolbar > button, .coart-tool-popover-wrap > button { display: flex; flex-direction: column; width: 52px; height: 46px; border-radius: 10px; gap: 2px; font-size: 10px; font-weight: 700; }
+.coart-toolbar > button:hover, .coart-toolbar > button.active, .coart-tool-popover-wrap > button:hover, .coart-tool-popover-wrap > button.active { background: #eff6ff; color: #1d4ed8; }
+.coart-tool-popover-wrap { position: relative; }
+.coart-tool-popover-wrap > button svg:last-child { position: absolute; right: 3px; bottom: 4px; }
+.coart-tool-popover {
+  position: absolute;
+  z-index: 20;
+  bottom: 56px;
+  left: 50%;
+  display: grid;
+  gap: 3px;
+  min-width: 156px;
+  padding: 7px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(15,23,42,.12);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(15,23,42,.18);
+}
+.coart-tool-popover button { display: flex; justify-content: flex-start; width: 100%; height: 34px; padding: 0 9px; border-radius: 8px; gap: 8px; font-size: 12px; font-weight: 650; }
+.coart-tool-popover button:hover { background: #eff6ff; color: #1d4ed8; }
+.coart-tool-popover label { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 7px 7px; color: #64748b; font-size: 10px; font-weight: 700; }
+.coart-tool-popover select { height: 28px; padding: 0 5px; border: 1px solid #dbe2ea; border-radius: 7px; background: white; font-size: 11px; }
+
+.coart-context-toolbar {
+  position: fixed;
+  z-index: 330;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 42px;
+  padding: 5px;
+  border: 1px solid rgba(15,23,42,.12);
+  border-radius: 11px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 12px 34px rgba(15,23,42,.16);
+  white-space: nowrap;
+}
+.coart-context-toolbar button { display: flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: #334155; gap: 5px; font-size: 11px; font-weight: 700; }
+.coart-context-toolbar button:hover { background: #f1f5f9; }
+.coart-context-toolbar button.is-primary { background: #2563eb; color: white; }
+.coart-context-toolbar button.is-danger:hover { background: #fef2f2; color: #dc2626; }
+.coart-context-divider { width: 1px; height: 22px; background: #e2e8f0; }
 
 .coart-zoom-control {
   position: fixed;
@@ -117,19 +174,22 @@ button { cursor: pointer; }
   padding: 4px;
   border: 1px solid rgba(26, 34, 48, .08);
   border-radius: 12px;
-  background: rgba(237, 241, 247, .94);
+  background: rgba(255, 255, 255, .96);
   box-shadow: 0 8px 24px rgba(31, 42, 61, .08);
 }
 .coart-zoom-control button { width: 32px; height: 32px; border-radius: 8px; }
 .coart-zoom-control button:hover { background: rgba(65, 118, 247, .12); color: #315fc2; }
 .coart-zoom-control output { min-width: 42px; text-align: center; font-size: 12px; font-weight: 720; }
+.coart-zoom-control .coart-zoom-output { display: flex; width: auto; min-width: 60px; padding: 0 5px; gap: 2px; }
+.coart-zoom-menu { position: absolute; bottom: 48px; left: 0; display: grid; width: 122px; padding: 6px; border: 1px solid #dbe2ea; border-radius: 10px; background: #fff; box-shadow: 0 14px 34px rgba(15,23,42,.16); }
+.coart-zoom-menu button { width: 100%; justify-content: flex-start; padding: 0 9px; font-size: 11px; font-weight: 650; }
 
 .coart-style-panel {
   position: fixed;
   z-index: 305;
   top: 72px;
   right: 14px;
-  width: 192px;
+  width: 204px;
   overflow: hidden;
   border: 1px solid rgba(26, 34, 48, .1);
   border-radius: 15px;
@@ -164,39 +224,47 @@ button { cursor: pointer; }
 .coart-line-sample { display: block; width: 21px; height: 0; border-top: 3px solid currentColor; }
 .coart-line-sample.is-dashed { border-top-style: dashed; }
 .coart-line-sample.is-dotted { border-top-style: dotted; }
-.coart-style-panel.is-disabled .coart-swatches, .coart-style-panel.is-disabled .coart-opacity, .coart-style-panel.is-disabled .coart-style-section { opacity: .48; }
 
 .coart-panel {
   position: fixed;
-  z-index: 290;
-  right: 220px;
-  top: 72px;
-  width: min(340px, calc(100vw - 248px));
+  z-index: 340;
+  width: min(352px, calc(100vw - 24px));
   padding: 16px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
-  background: color-mix(in srgb, Canvas 96%, transparent);
-  box-shadow: 0 18px 50px rgba(25, 20, 48, .16);
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 18px 50px rgba(15,23,42,.18);
   backdrop-filter: blur(18px);
 }
 .coart-panel header { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .coart-panel header div { display: flex; flex-direction: column; gap: 4px; }
 .coart-panel header strong { font-size: 15px; }
 .coart-panel header span { font-size: 11px; opacity: .56; }
+.coart-panel-close { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: #64748b; }
+.coart-panel-close:hover { background: #f1f5f9; color: #0f172a; }
 .coart-panel textarea {
   width: 100%; min-height: 120px; resize: vertical;
   padding: 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
   background: color-mix(in srgb, Canvas 92%, transparent); color: inherit; outline: none; line-height: 1.55;
 }
-.coart-panel textarea:focus { border-color: #6d5ef7; box-shadow: 0 0 0 3px rgba(109, 94, 247, .12); }
+.coart-panel textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+.coart-prompt-hint { display: block; margin-top: 4px; color: #94a3b8; text-align: right; font-size: 10px; }
 .coart-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; font-size: 12px; font-weight: 650; }
 .coart-field input, .coart-field select { width: 88px; padding: 7px 8px; border-radius: 8px; border: 1px solid color-mix(in srgb, currentColor 14%, transparent); background: transparent; color: inherit; }
-.coart-upload { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; font-weight: 650; color: #6d5ef7; cursor: pointer; }
+.coart-upload { display: inline-flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; font-weight: 650; color: #2563eb; cursor: pointer; }
+.coart-upload > span { color: #94a3b8; font-size: 10px; }
 .coart-upload input { display: none; }
-.coart-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-.coart-files span { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 5px 8px; border-radius: 999px; background: rgba(109, 94, 247, .1); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.coart-files button { display: grid; place-items: center; border: 0; background: transparent; color: inherit; padding: 0; }
-.coart-primary { width: 100%; margin-top: 14px; height: 40px; border: 0; border-radius: 11px; background: #6d5ef7; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 750; }
+.coart-reference-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-top: 9px; }
+.coart-reference-grid figure { position: relative; min-width: 0; margin: 0; }
+.coart-reference-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid #dbe2ea; border-radius: 8px; }
+.coart-reference-grid figcaption { overflow: hidden; margin-top: 3px; color: #64748b; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+.coart-reference-grid button { position: absolute; top: 3px; right: 3px; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 6px; background: rgba(15,23,42,.78); color: white; }
+.coart-slide-count { display: flex; align-items: center; gap: 5px; margin: 10px 0; }
+.coart-slide-count > span { margin-right: auto; font-size: 12px; font-weight: 650; }
+.coart-slide-count button { height: 30px; padding: 0 9px; border: 1px solid #dbe2ea; border-radius: 7px; background: #fff; color: #475569; font-size: 11px; }
+.coart-slide-count button.active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+.coart-slide-count input { width: 54px; height: 30px; border: 1px solid #dbe2ea; border-radius: 7px; }
+.coart-primary { width: 100%; margin-top: 14px; height: 40px; border: 0; border-radius: 9px; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 750; }
 .coart-primary:disabled { opacity: .55; cursor: wait; }
 
 .coart-toast { position: fixed; z-index: 500; bottom: 86px; left: 50%; transform: translateX(-50%); padding: 9px 14px; border-radius: 999px; background: #211f2c; color: white; box-shadow: 0 8px 28px rgba(0,0,0,.24); font-size: 12px; }
@@ -224,25 +292,32 @@ button { cursor: pointer; }
 
 @media (max-width: 900px) {
   .coart-document-bar { top: 8px; left: 8px; }
-  .coart-toolbar { left: 12px; right: 198px; bottom: 10px; max-width: none; transform: none; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+  .coart-toolbar { left: 50%; right: auto; bottom: 10px; width: max-content; max-width: calc(100vw - 24px); transform: translateX(-50%); overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
   .coart-toolbar::-webkit-scrollbar { display: none; }
-  .coart-style-panel { top: 68px; right: 8px; width: 178px; }
+  .coart-style-panel { top: 68px; right: 8px; width: 190px; }
   .coart-swatches button { width: 31px; }
-  .coart-zoom-control { top: 10px; right: 10px; bottom: auto; left: auto; }
-  .coart-panel { top: auto; right: 10px; bottom: 78px; left: 10px; width: auto; max-height: calc(100vh - 158px); overflow: auto; }
+  .coart-zoom-control { left: 10px; bottom: 76px; }
+  .coart-panel { top: auto !important; right: 10px !important; bottom: 78px; left: 10px !important; width: auto; max-height: calc(100vh - 158px); overflow: auto; }
+  .coart-context-toolbar { max-width: calc(100vw - 20px); overflow-x: auto; }
   .coart-toast { bottom: 80px; }
   .coart-slides-viewer { inset: 0; border-radius: 0; }
   .coart-slides-body { grid-template-columns: 1fr; }
   .coart-slides-body nav { display: none; }
 }
 
-@media (max-width: 560px) {
-  .coart-document-bar .coart-page-button { min-width: 76px; }
-  .coart-document-bar .coart-selection-action { display: none; }
-  .coart-style-panel { width: 164px; }
-  .coart-toolbar { right: 176px; }
+@media (max-width: 700px) {
+  .coart-document-bar { max-width: calc(100vw - 16px); overflow-x: auto; }
+  .coart-save-status { display: none; }
+  .coart-style-panel { top: auto; right: 8px; bottom: 76px; left: 8px; width: auto; max-height: 38vh; overflow-y: auto; border-radius: 14px; }
   .coart-swatches { gap: 2px; padding-inline: 7px; }
-  .coart-swatches button { width: 34px; }
-  .coart-toolbar .coart-annotate-button span { display: none; }
-  .coart-toolbar .coart-annotate-button { min-width: 42px; padding: 0; }
+  .coart-swatches { grid-template-columns: repeat(6, 1fr); }
+  .coart-swatches button { width: 100%; }
+  .coart-context-toolbar { right: 8px; bottom: 76px; left: 8px !important; top: auto !important; transform: none !important; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .coart-document-title { font-size: 12px; }
+  .coart-page-label { padding-inline: 5px; }
+  .coart-toolbar > button, .coart-tool-popover-wrap > button { width: 48px; }
+  .coart-zoom-control { bottom: 74px; }
 }

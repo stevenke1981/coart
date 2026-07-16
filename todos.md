@@ -54,6 +54,17 @@
 - [x] AI 圖片框提供 4:3、3:4、9:16、16:9 與 1:1 比例預設，建立時預設保存 2K 解析度。
 - [x] AI 圖片生成面板支援 2K／4K 解析度選擇，prompt 帶出比例與對應像素尺寸。
 
+## 已完成（Ferric Canvas 互動與效能改善）
+
+- [x] pointer move 以 animation frame 合併，支援 coalesced events、append-only draw buffer、preview 上限與 RDP 簡化
+- [x] 拖曳、縮放、旋轉與框選採 local transient layer，互動結束才同步 Ferric engine
+- [x] typed document／selection／camera／tool／interaction／render 事件與分離 autosave 節流
+- [x] undo/redo、clipboard、duplicate/delete、layer、lock、fit/selection zoom 與鍵盤快捷鍵
+- [x] 八方向 resize、rotate handle、框選、多選與 mixed style values
+- [x] 第一層工具列、情境工具列、生成面板、參考圖縮圖與 responsive style panel
+- [x] Playwright 使用本機 Chrome 的真實 Widget 互動、五種 viewport 與 500 shapes 壓力驗收
+- [x] `canvas/` ignore 規則限縮為根目錄 `/canvas/`，確保 `src/canvas/` 來源可追蹤
+
 ## 下一版（v0.2）
 
 - [x] 安裝 preflight 檢查 `codex features list` 的 `enable_mcp_apps`，在宿主旗標關閉時顯示可操作錯誤與重啟提示。
@@ -63,7 +74,7 @@
 - [ ] Slides 拖放排序
 - [ ] 多格式 export（ZIP/PDF/PPTX）
 - [ ] image record deletion protection
-- [ ] Playwright Widget UI 測試（目前已有可移植 Chromium headless smoke）
+- [x] Playwright Widget UI 測試（使用本機 Chrome，覆蓋拖曳、resize、rotate、undo/redo、框選、clipboard、中文、長筆跡、pan、zoom 與生成 draft）
 - [ ] Chrome／Edge standalone editor app-mode UI smoke 與跨平台 launcher coverage
 - [ ] standalone bitmap crop／paint editor（目前外部視窗提供 Ferric Canvas 畫布、圖片配置與標註流程）
 

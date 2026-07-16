@@ -1,5 +1,27 @@
 # Coart v0.2.8 Reliability Delivery
 
+## 2026-07-17 Ferric Canvas 互動、效能與介面改善
+
+- 依 `COART_FERRIC_CANVAS_IMPROVEMENT_SPEC.md` 完成互動核心重整：pointer move 每 frame 合併、coalesced 採樣、append-only 手繪、preview 上限、RDP 簡化，以及拖曳／resize／rotate／框選的 local transient transaction；互動期間不再呼叫 `loadScene`。
+- 將 document、selection、camera、tool、interaction 與 render diagnostics 拆為型別化事件；autosave 分別 debounce／throttle 並共用序列佇列，純選取或縮放不會誤寫完整文件。
+- 補齊 undo/redo、clipboard、duplicate/delete、layer、lock、八方向 resize、rotate、marquee、fit/selection zoom、Space 暫時平移與完整快捷鍵。
+- 依 clean-room 視覺概念重整文件列、第一層工具列、情境工具列、生成面板與多選樣式面板；支援 mixed values、pin/collapse、參考圖縮圖、每 shape draft 與窄螢幕 bottom sheet。
+- Playwright probe 改用已安裝的本機 Chrome，執行真實 Widget 互動、320px 至 1440px 五種 viewport，以及 500 shapes 壓力頁。
+
+### 問題根因與修正
+
+- React StrictMode 的非同步 `onReady` 會留下過期 editor，造成工具列與畫布操作不同實例；改以 active editor ref 拒絕過期回呼。
+- Ferric 非同步同步期間可能把較舊 engine 狀態覆回 records；改成 reload coalescing，並以 records 作互動期間唯一狀態來源。
+- Ctrl/Cmd 等 modifier-only keydown 曾先進 Ferric 而清掉選取，讓 duplicate/clipboard 失效；快捷鍵層現在先攔截修飾鍵組合。
+- React wheel listener 可能成為 passive listener；改用明確 non-passive 原生監聽。
+- `.gitignore` 的 `canvas/` 同時排除了 `src/canvas/`；限縮為根目錄 `/canvas/`，保留使用者 canvas 資料忽略規則並讓新核心模組進入版本控制。
+
+### 驗收
+
+- `npm run quality` 全部通過：靜態檢查、TypeScript、23/23 單元測試、production build、16-tool stdio/HTTP MCP probes 與 Playwright Widget probe。
+- 拖曳驗證 `loadScene 3→3`；500 shapes 壓力頁約 0.8 秒載入且互動為 `loadScene 2→2`。
+- 保留既有 Vite 大型 bundle 警告；本次沒有提高安全邊界，也沒有刪除任何使用者 canvas 圖片或 shape。
+
 ## 2026-07-17 AI 圖片框比例與解析度
 
 - AI 圖片框比例預設整理為 4:3、3:4、9:16、16:9，並保留 1:1；建立時保存 `coartAspectRatio` 與預設 `coartResolution: 2K` metadata。

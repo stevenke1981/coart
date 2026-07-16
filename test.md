@@ -25,6 +25,8 @@ npm test
 - standalone editor loopback state persistence、token authorization、pending follow-up queue 與 project-local latest image lookup。
 - existing image shape update preserving shape identity and protected previous assets。
 - 圖片／HTML／Slides prompt 是否包含 shape、尺寸與 MCP 插入工具契約。
+- pointer scheduler 每 frame 合併、1000 點路徑簡化、typed event separation 與 serial persistence queue。
+- context mode 與多選 mixed style value。
 
 ## Build
 
@@ -66,20 +68,22 @@ npm run probe:http
 - 重開 Widget，確認形狀、camera 與 selection 可恢復。
 - 測試深色／淺色 host theme。
 
-## 2026-07-16 v0.2.8 驗證紀錄
+## 2026-07-17 Ferric Canvas 改善驗證紀錄
 
 工作目錄：`D:\\coart`
 
 | 指令 | 結果 | 證據 |
 | --- | --- | --- |
 | `npm run check` | PASS | Node/MCP TypeScript check exit 0 |
-| `npm test` | PASS | 17/17 tests passed |
+| `npm test` | PASS | 23/23 tests passed |
 | `npm run build` | PASS | Vite production build completed |
 | `npm run probe:mcp` | PASS | 16 tools、`canvas-v0-2-8`、sidebar→fullscreen 與 inline assertions passed |
 | `npm run probe:http` | PASS | Streamable HTTP `/mcp`、16 tools passed |
-| `npm run probe:widget` | PASS | Chrome `mounted: true`、`canvasReady: true` |
+| `npm run probe:widget` | PASS | 本機 Chrome 真實互動、五種 viewport 與 500 shapes 壓力測試通過 |
 
-Coverage gap: Codex Desktop 的實際右側面板仍需在重新安裝 `coart@coart-public` v0.2.8、重開 Desktop／新 task 後人工確認；本機 probe 已驗證送出的標準 `fullscreen` request 與 Widget capabilities。
+Widget probe 覆蓋：建立與拖曳矩形（拖曳期間 `loadScene 3→3`）、resize、rotate、undo/redo、框選兩個物件、copy/paste、中文文字、1000 點手繪、Space pan、wheel zoom 不增加 document revision，以及 AI generation draft／貼上圖片保留。Viewport 為 320×640、480×720、768×640、1024×768、1440×900；500 shapes 壓力頁載入約 0.8 秒，互動期間 `loadScene 2→2`。
+
+Coverage gap: Codex Desktop 的實際右側面板仍需在安裝目前版本、重開 Desktop／新 task 後人工確認；本機 probe 已驗證 Widget 本體與送出的標準 `fullscreen` request。
 
 ## 安全測試
 

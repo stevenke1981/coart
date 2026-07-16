@@ -156,6 +156,73 @@ export interface CanvasViewportBounds {
 
 export type CanvasTool = 'select' | 'pan' | 'draw' | 'rectangle' | 'text'
 
+export type EditorEventType = 'document' | 'selection' | 'camera' | 'tool' | 'interaction' | 'render'
+
+export interface DocumentChangeEvent {
+  revision: number
+  changedIds: string[]
+}
+
+export interface SelectionChangeEvent {
+  revision: number
+  ids: string[]
+}
+
+export interface CameraChangeEvent {
+  revision: number
+  camera: CanvasCamera
+}
+
+export interface ToolChangeEvent {
+  tool: CanvasTool
+}
+
+export interface InteractionChangeEvent {
+  phase: 'started' | 'updated' | 'committed' | 'cancelled'
+  interaction: 'pointer' | 'resize' | 'rotate' | 'marquee'
+}
+
+export interface RenderChangeEvent {
+  revision: number
+}
+
+export interface EditorChangeMap {
+  document: DocumentChangeEvent
+  selection: SelectionChangeEvent
+  camera: CameraChangeEvent
+  tool: ToolChangeEvent
+  interaction: InteractionChangeEvent
+  render: RenderChangeEvent
+}
+
+export interface DirtyState {
+  documentRevision: number
+  savedDocumentRevision: number
+  selectionRevision: number
+  savedSelectionRevision: number
+  viewRevision: number
+  savedViewRevision: number
+}
+
+export interface EditorDiagnostics {
+  loadSceneCount: number
+  pointerMoveCount: number
+  documentRevision: number
+  renderRevision: number
+  recordCount: number
+  selectedIds: string[]
+}
+
+export interface CanvasBounds {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
+export type ZoomFitMode = 'content' | 'selection' | 'reset'
+
 export type CanvasStrokeStyle = 'solid' | 'dashed' | 'dotted' | 'none'
 
 export interface CanvasStylePatch {
@@ -199,14 +266,26 @@ export interface EditorLike {
   has(id: string): boolean
   getCamera(): CanvasCamera
   setCamera(camera: CanvasCamera): void
+  zoomToFit(mode: ZoomFitMode): void
   getSelectedShapeIds(): string[]
   getShape(id: string): AnyCanvasShape | undefined
   getCurrentPageShapes(): AnyCanvasShape[]
   createShape(input: CanvasShapeInput): void
   select(id: string): void
   setSelection(ids: string[]): void
+  selectInBounds(bounds: CanvasBounds, additive?: boolean): void
+  getSelectionBounds(): CanvasBounds | null
+  getSelectionScreenBounds(): CanvasViewportBounds | null
   duplicateSelection(): void
   deleteSelection(): void
+  copySelection(): void
+  pasteClipboard(): void
+  undo(): void
+  redo(): void
+  canUndo(): boolean
+  canRedo(): boolean
+  toggleSelectionLock(): void
+  moveSelectionLayer(direction: 'forward' | 'backward'): void
   updateSelectedStyles(patch: CanvasStylePatch): void
   setCurrentTool(tool: CanvasTool): void
   getCurrentTool(): CanvasTool
@@ -214,10 +293,21 @@ export interface EditorLike {
   updateRectangle(point: CanvasPoint): void
   finishRectangle(): void
   createText(point: CanvasPoint): void
+  beginResize(handle: ResizeHandle, point: CanvasPoint): void
+  updateResize(point: CanvasPoint): void
+  commitResize(): void
+  cancelResize(): void
+  beginRotate(point: CanvasPoint): void
+  updateRotate(point: CanvasPoint): void
+  commitRotate(): void
+  cancelRotate(): void
+  getDocumentRevision(): number
+  getDiagnostics(): EditorDiagnostics
   getStoreSnapshot(): CanvasSnapshot
   loadStoreSnapshot(snapshot: CanvasSnapshot): Promise<void>
   toImage(ids: string[], options?: CanvasImageOptions): Promise<{ blob: Blob }>
   onChange(listener: () => void): () => void
+  on<K extends EditorEventType>(type: K, listener: (event: EditorChangeMap[K]) => void): () => void
 }
 
 export interface PromptShape {

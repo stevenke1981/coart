@@ -6,6 +6,6 @@ dist/
 .opencode/
 .codex/evolution/state/
 .coart-cache/
-canvas/
+/canvas/
 *.log
 .DS_Store

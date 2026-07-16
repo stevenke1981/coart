@@ -25,14 +25,36 @@ MCP storage layer
 ## 前端模組
 
 - `App.tsx`：組合 Ferric canvas facade、狀態載入、選取同步與面板。
-- `FerricCanvas.tsx`：掛載 Ferric Canvas SVG scene、縮放／平移／手繪、框線拖曳、文字編輯與瀏覽器生命週期。
-- `CanvasToolbar.tsx`：建立 AI image、AI HTML、Slides slot、框線／文字工具與標註操作。
-- `GenerationPanel.tsx`：prompt、參考圖、頁數與 follow-up message。
+- `FerricCanvas.tsx`：掛載 Ferric Canvas SVG scene、暫態手勢層、框選、縮放／旋轉控制點、手繪 preview、文字編輯與瀏覽器生命週期。
+- `CanvasToolbar.tsx`：第一層創作工具、文件操作、縮放選單與 shape／AI 建立入口。
+- `ContextToolbar.tsx`：依一般、文字、圖片、AI 圖片、AI HTML、Slides 與混合選取切換的情境工具列。
+- `GenerationPanel.tsx`：每個 shape 獨立的 prompt、參考圖、頁數與 follow-up draft。
+- `CanvasStylePanel.tsx`：單選／多選樣式、mixed value 與 pin/collapse 狀態。
 - `SlidesViewer.tsx`：讀取 Slides frame 的子 HTML shape 並播放。
-- `SlidesViewer.tsx`：使用 `iframe srcDoc` 顯示單檔 HTML；畫布上的 HTML slot 以可選取的 Ferric rect placeholder 呈現。
+- `src/canvas/EventBus.ts`：文件、選取、相機、工具、互動與 render diagnostics 的型別化事件匯流排。
+- `src/canvas/PointerScheduler.ts` 與 `path.ts`：每 frame 合併 pointer move、coalesced event 採樣、preview 上限與 RDP 路徑簡化。
+- `src/canvas/PersistenceQueue.ts`：snapshot、selection、view 共用的序列化持久化佇列。
 - `coartClient.ts`：MCP bridge、project target recovery、standalone editor loopback API 與 localStorage fallback。
 - `prompts.ts`：集中管理送給 Codex 的工作流提示詞。
-- `ferricCanvas.ts`：Ferric Scene JSON 與 Coart `schema/store` 快照之間的轉換 facade；保留 Coart id、props 與 metadata，讓引擎可替換而不破壞持久化格式。
+- `ferricCanvas.ts`：Ferric Scene JSON 與 Coart `schema/store` 快照之間的轉換 facade；records 是互動期間的唯一狀態來源，Ferric engine 在互動提交時同步，並提供 undo/redo、clipboard、layer、lock、resize 與 rotate transaction。
+
+## 互動與持久化資料流
+
+```text
+raw pointer events
+  → PointerScheduler（每個 animation frame 一次）
+  → local transient gesture／preview
+  → interaction commit
+  → Coart records + history
+  → Ferric engine sync
+  → typed document event
+  → SerialPersistenceQueue
+
+selection event → throttle save
+camera event    → debounce save
+```
+
+拖曳、縮放、旋轉、框選與手繪期間不重建 Ferric scene；取消互動會回復 transaction 前狀態。React UI 可以訂閱彙總事件更新介面，但 autosave 只接受分離的 document／selection／camera 事件，避免純縮放或選取變更誤寫完整 snapshot。
 
 ## MCP 模組
 

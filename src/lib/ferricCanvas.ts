@@ -3,6 +3,7 @@ import {
   type BridgeEffect,
   type FerricCanvasEngine
 } from '@ferric-canvas/web'
+import { EventBus } from '../canvas/EventBus'
 import type {
   AnyCanvasShape,
   CanvasCamera,
@@ -14,7 +15,12 @@ import type {
   CanvasTool,
   CanvasViewportBounds,
   EditorLike,
-  CanvasImageOptions
+  CanvasImageOptions,
+  CanvasBounds,
+  EditorChangeMap,
+  EditorEventType,
+  ResizeHandle,
+  ZoomFitMode
 } from '../types'
 
 const PAGE_ID = 'page:page'
@@ -77,6 +83,20 @@ interface FerricEditorOptions {
   onDraftRectangle?: (draft: DraftRectangle | null) => void
   onTextEditRequest?: (shapeId: string) => void
   onError?: (message: string) => void
+}
+
+interface TransformSession {
+  kind: 'resize' | 'rotate'
+  handle?: ResizeHandle
+  start: CanvasPoint
+  bounds: CanvasBounds
+  originals: Map<string, AnyCanvasShape>
+  before: CanvasSnapshot
+}
+
+interface HistoryEntry {
+  snapshot: CanvasSnapshot
+  selectedIds: string[]
 }
 
 function clone<T>(value: T): T {
@@ -335,6 +355,15 @@ function objectForRecord(record: AnyCanvasShape, records: Map<string, CanvasReco
     }
   }
 
+  if (type === 'ellipse') {
+    return {
+      type: 'ellipse',
+      common: commonForRecord(record, ferricId, paint(record.props.fill, { r: 255, g: 255, b: 255, a: 235 }), strokeForRecord(record, '#2563eb')),
+      rx: width / 2,
+      ry: height / 2
+    }
+  }
+
   if (type === 'draw' || type === 'path') {
     const commands = pathCommands(record.props.path)
     if (commands.length > 0) {
@@ -411,7 +440,7 @@ function recordFromObject(object: FerricObject): AnyCanvasShape {
   const savedProps = isRecord(metadata.coartProps) ? clone(metadata.coartProps) as Record<string, unknown> : {}
   const savedMeta = isRecord(metadata.coartMeta) ? clone(metadata.coartMeta) as AnyCanvasShape['meta'] : {}
   const dimensions = objectDimensions(object, savedProps)
-  const type = stringValue(metadata.coartType, object.type === 'text' ? 'text' : object.type === 'image' ? 'image' : object.type === 'line' ? 'line' : object.type === 'path' ? 'draw' : 'frame')
+  const type = stringValue(metadata.coartType, object.type === 'text' ? 'text' : object.type === 'image' ? 'image' : object.type === 'line' ? 'line' : object.type === 'ellipse' ? 'ellipse' : object.type === 'path' ? 'draw' : 'frame')
   const props: Record<string, unknown> = { ...savedProps, w: dimensions.w, h: dimensions.h }
   if (object.type === 'text') {
     const text = stringValue(object.text, stringValue(props.text, '文字'))
@@ -474,6 +503,7 @@ async function svgToBlob(
 
 export class CoartFerricEditor implements EditorLike {
   private readonly listeners = new Set<() => void>()
+  private readonly events = new EventBus<EditorChangeMap>()
   private readonly ferricIds = new Map<string, string>()
   private records = new Map<string, CanvasRecord>()
   private schema: Record<string, unknown> = createEmptyCanvasSnapshot().schema
@@ -486,8 +516,21 @@ export class CoartFerricEditor implements EditorLike {
   private draftStart: CanvasPoint | null = null
   private engine: FerricCanvasEngine | null = null
   private reloadChain: Promise<void> = Promise.resolve()
-  private pendingReloads = 0
+  private reloadQueued = false
+  private reloadInFlight = false
   private disposed = false
+  private documentRevision = 0
+  private selectionRevision = 0
+  private cameraRevision = 0
+  private renderRevision = 0
+  private undoStack: HistoryEntry[] = []
+  private redoStack: HistoryEntry[] = []
+  private clipboard: AnyCanvasShape[] = []
+  private transform: TransformSession | null = null
+  private pointerBefore: CanvasSnapshot | null = null
+  private pointerSceneChanged = false
+  private loadSceneCount = 0
+  private pointerMoveCount = 0
 
   private constructor(private readonly options: FerricEditorOptions) {
     this.records = new Map(Object.entries(createEmptyCanvasSnapshot().store))
@@ -511,10 +554,47 @@ export class CoartFerricEditor implements EditorLike {
     for (const listener of this.listeners) listener()
   }
 
+  private emitSelection(): void {
+    this.selectionRevision += 1
+    this.events.emit('selection', { revision: this.selectionRevision, ids: [...this.selectedIds] })
+    this.emitChange()
+  }
+
+  private emitDocument(changedIds: string[]): void {
+    this.documentRevision += 1
+    this.events.emit('document', { revision: this.documentRevision, changedIds: [...new Set(changedIds)] })
+    this.emitChange()
+  }
+
+  private emitCamera(): void {
+    this.cameraRevision += 1
+    this.events.emit('camera', { revision: this.cameraRevision, camera: { ...this.camera } })
+    this.emitChange()
+  }
+
+  private emitInteraction(phase: EditorChangeMap['interaction']['phase'], interaction: EditorChangeMap['interaction']['interaction']): void {
+    this.events.emit('interaction', { phase, interaction })
+    this.emitChange()
+  }
+
+  private snapshotRecords(): CanvasSnapshot {
+    const store: Record<string, CanvasRecord> = {}
+    for (const [id, record] of this.records) store[id] = clone(record)
+    return { schema: clone(this.schema), store }
+  }
+
+  private pushHistory(snapshot: CanvasSnapshot): void {
+    this.undoStack.push({ snapshot, selectedIds: [...this.selectedIds] })
+    if (this.undoStack.length > 50) this.undoStack.shift()
+    this.redoStack = []
+  }
+
   private render(): void {
     if (!this.engine || this.disposed) return
     try {
       this.options.onRender(this.engine.renderSvg(), { ...this.camera })
+      this.renderRevision += 1
+      this.events.emit('render', { revision: this.renderRevision })
     } catch (error: unknown) {
       this.reportError(error)
     }
@@ -526,6 +606,7 @@ export class CoartFerricEditor implements EditorLike {
 
   private async reloadNow(): Promise<void> {
     if (this.disposed) return
+    this.loadSceneCount += 1
     const next = await loadScene(JSON.stringify(this.scene()))
     const previous = this.engine
     this.engine = next
@@ -534,17 +615,26 @@ export class CoartFerricEditor implements EditorLike {
   }
 
   private queueReload(): Promise<void> {
-    this.pendingReloads += 1
+    if (this.reloadQueued) return this.reloadChain
+    this.reloadQueued = true
     this.reloadChain = this.reloadChain
       .catch(() => undefined)
-      .then(() => this.reloadNow())
+      .then(async () => {
+        await Promise.resolve()
+        this.reloadQueued = false
+        this.reloadInFlight = true
+        try {
+          await this.reloadNow()
+        } finally {
+          this.reloadInFlight = false
+        }
+      })
       .catch((error: unknown) => this.reportError(error))
-      .finally(() => { this.pendingReloads = Math.max(0, this.pendingReloads - 1) })
     return this.reloadChain
   }
 
   private syncFromEngine(): void {
-    if (!this.engine || this.pendingReloads > 0) return
+    if (!this.engine || this.reloadQueued || this.reloadInFlight || this.transform) return
     try {
       const scene = JSON.parse(this.engine.sceneJson()) as FerricScene
       const activeIds = new Set<string>()
@@ -565,12 +655,14 @@ export class CoartFerricEditor implements EditorLike {
     }
   }
 
-  private applyEffect(effect: BridgeEffect): void {
+  private applyEffect(effect: BridgeEffect, syncScene: boolean): void {
+    const previousSelection = this.selectedIds.join('\u0000')
     const reverse = new Map([...this.ferricIds.entries()].map(([coartId, ferricId]) => [ferricId, coartId]))
     this.selectedIds = effect.selection.map((id) => reverse.get(id)).filter((id): id is string => Boolean(id))
-    if (effect.scene_changed) this.syncFromEngine()
+    if (effect.scene_changed && syncScene) this.syncFromEngine()
     if (effect.request_render || effect.scene_changed) this.render()
-    this.emitChange()
+    if (previousSelection !== this.selectedIds.join('\u0000')) this.emitSelection()
+    else this.emitChange()
   }
 
   getViewportPageBounds(): CanvasViewportBounds {
@@ -590,7 +682,6 @@ export class CoartFerricEditor implements EditorLike {
     this.viewportWidth = nextWidth
     this.viewportHeight = nextHeight
     this.render()
-    this.emitChange()
   }
 
   getCurrentPageId(): string {
@@ -598,7 +689,10 @@ export class CoartFerricEditor implements EditorLike {
   }
 
   setCurrentPage(pageId: string): void {
-    if (this.records.has(pageId)) this.currentPageId = pageId
+    if (!this.records.has(pageId) || pageId === this.currentPageId) return
+    this.currentPageId = pageId
+    void this.queueReload()
+    this.emitCamera()
   }
 
   has(id: string): boolean {
@@ -616,7 +710,27 @@ export class CoartFerricEditor implements EditorLike {
       z: clamp(numberValue(camera.z, 1), 0.1, 4)
     }
     this.render()
-    this.emitChange()
+    this.emitCamera()
+  }
+
+  zoomToFit(mode: ZoomFitMode): void {
+    if (mode === 'reset') {
+      this.setCamera({ x: 0, y: 0, z: 1 })
+      return
+    }
+    const bounds = mode === 'selection'
+      ? this.getSelectionBounds()
+      : this.boundsFor(this.getCurrentPageShapes())
+    if (!bounds) return
+    const width = Math.max(1, bounds.right - bounds.left)
+    const height = Math.max(1, bounds.bottom - bounds.top)
+    const padding = 96
+    const zoom = clamp(Math.min((this.viewportWidth - padding * 2) / width, (this.viewportHeight - padding * 2) / height), 0.1, 4)
+    this.setCamera({
+      x: this.viewportWidth / 2 - (bounds.left + width / 2) * zoom,
+      y: this.viewportHeight / 2 - (bounds.top + height / 2) * zoom,
+      z: zoom
+    })
   }
 
   worldPointFromScreen(point: CanvasPoint): CanvasPoint {
@@ -640,13 +754,11 @@ export class CoartFerricEditor implements EditorLike {
   }
 
   getShape(id: string): AnyCanvasShape | undefined {
-    this.syncFromEngine()
     const record = this.records.get(id)
     return record?.typeName === 'shape' ? clone(record) as AnyCanvasShape : undefined
   }
 
   getCurrentPageShapes(): AnyCanvasShape[] {
-    this.syncFromEngine()
     return [...this.records.values()]
       .filter((record): record is AnyCanvasShape => record.typeName === 'shape' && pageForRecord(this.records, record) === this.currentPageId)
       .sort((left, right) => String(left.index || '').localeCompare(String(right.index || '')))
@@ -654,27 +766,71 @@ export class CoartFerricEditor implements EditorLike {
   }
 
   createShape(input: CanvasShapeInput): void {
+    this.pushHistory(this.snapshotRecords())
     const record = recordFromInput(input, nextIndex(this.records, input.parentId || this.currentPageId), this.currentPageId)
     this.records.set(record.id, record)
     this.selectedIds = [record.id]
     void this.queueReload()
-    this.emitChange()
+    this.emitSelection()
+    this.emitDocument([record.id])
   }
 
   select(id: string): void {
     if (!this.records.has(id)) return
     this.selectedIds = [id]
-    this.emitChange()
+    this.emitSelection()
   }
 
   setSelection(ids: string[]): void {
     this.selectedIds = ids.filter((id) => this.records.get(id)?.typeName === 'shape')
-    this.emitChange()
+    this.emitSelection()
+  }
+
+  selectInBounds(bounds: CanvasBounds, additive = false): void {
+    const hits = this.getCurrentPageShapes()
+      .filter((shape) => {
+        const item = recordBounds(shape)
+        return item.left >= bounds.left && item.top >= bounds.top && item.right <= bounds.right && item.bottom <= bounds.bottom
+      })
+      .map((shape) => shape.id)
+    this.selectedIds = additive ? [...new Set([...this.selectedIds, ...hits])] : hits
+    this.emitSelection()
+  }
+
+  private boundsFor(shapes: AnyCanvasShape[]): CanvasBounds | null {
+    if (!shapes.length) return null
+    return shapes.reduce((result, shape) => {
+      const next = recordBounds(shape)
+      return {
+        left: Math.min(result.left, next.left),
+        top: Math.min(result.top, next.top),
+        right: Math.max(result.right, next.right),
+        bottom: Math.max(result.bottom, next.bottom)
+      }
+    }, { left: Number.POSITIVE_INFINITY, top: Number.POSITIVE_INFINITY, right: Number.NEGATIVE_INFINITY, bottom: Number.NEGATIVE_INFINITY })
+  }
+
+  getSelectionBounds(): CanvasBounds | null {
+    const shapes = this.selectedIds
+      .map((id) => this.records.get(id))
+      .filter((record): record is AnyCanvasShape => record?.typeName === 'shape')
+    return this.boundsFor(shapes)
+  }
+
+  getSelectionScreenBounds(): CanvasViewportBounds | null {
+    const bounds = this.getSelectionBounds()
+    if (!bounds) return null
+    return {
+      x: this.camera.x + bounds.left * this.camera.z,
+      y: this.camera.y + bounds.top * this.camera.z,
+      w: (bounds.right - bounds.left) * this.camera.z,
+      h: (bounds.bottom - bounds.top) * this.camera.z
+    }
   }
 
   duplicateSelection(): void {
     if (!this.selectedIds.length) return
-    this.syncFromEngine()
+    this.pushHistory(this.snapshotRecords())
     const idMap = new Map(this.selectedIds.map((id) => [id, createCoartShapeId()]))
     const duplicatedIds: string[] = []
     for (const id of this.selectedIds) {
@@ -691,16 +847,114 @@ export class CoartFerricEditor implements EditorLike {
     }
     this.selectedIds = duplicatedIds
     void this.queueReload()
-    this.emitChange()
+    this.emitSelection()
+    this.emitDocument(duplicatedIds)
   }
 
   deleteSelection(): void {
     void this.deleteSelected()
   }
 
+  copySelection(): void {
+    this.clipboard = this.selectedIds
+      .map((id) => this.records.get(id))
+      .filter((record): record is AnyCanvasShape => record?.typeName === 'shape')
+      .map((record) => clone(record))
+  }
+
+  pasteClipboard(): void {
+    if (!this.clipboard.length) return
+    this.pushHistory(this.snapshotRecords())
+    const idMap = new Map(this.clipboard.map((shape) => [shape.id, createCoartShapeId()]))
+    const pasted: string[] = []
+    for (const source of this.clipboard) {
+      const shape = clone(source)
+      shape.id = idMap.get(source.id) as string
+      shape.parentId = idMap.get(String(source.parentId)) || this.currentPageId
+      shape.index = nextIndex(this.records, String(shape.parentId))
+      shape.x = numberValue(shape.x, 0) + 32
+      shape.y = numberValue(shape.y, 0) + 32
+      this.records.set(shape.id, shape)
+      pasted.push(shape.id)
+    }
+    this.selectedIds = pasted
+    void this.queueReload()
+    this.emitSelection()
+    this.emitDocument(pasted)
+  }
+
+  canUndo(): boolean { return this.undoStack.length > 0 }
+  canRedo(): boolean { return this.redoStack.length > 0 }
+
+  undo(): void {
+    const previous = this.undoStack.pop()
+    if (!previous) return
+    this.redoStack.push({ snapshot: this.snapshotRecords(), selectedIds: [...this.selectedIds] })
+    void this.restoreSnapshot(previous)
+  }
+
+  redo(): void {
+    const next = this.redoStack.pop()
+    if (!next) return
+    this.undoStack.push({ snapshot: this.snapshotRecords(), selectedIds: [...this.selectedIds] })
+    void this.restoreSnapshot(next)
+  }
+
+  private async restoreSnapshot(entry: HistoryEntry): Promise<void> {
+    this.schema = clone(entry.snapshot.schema)
+    this.records = new Map(Object.entries(entry.snapshot.store).map(([id, record]) => [id, clone(record)]))
+    this.selectedIds = entry.selectedIds.filter((id) => this.records.has(id))
+    this.ferricIds.clear()
+    await this.queueReload()
+    this.emitSelection()
+    this.emitDocument([...this.records.keys()])
+  }
+
+  toggleSelectionLock(): void {
+    if (!this.selectedIds.length) return
+    this.pushHistory(this.snapshotRecords())
+    const shouldLock = this.selectedIds.some((id) => !this.records.get(id)?.isLocked)
+    for (const id of this.selectedIds) {
+      const record = this.records.get(id)
+      if (record?.typeName === 'shape') record.isLocked = shouldLock
+    }
+    void this.queueReload()
+    this.emitDocument(this.selectedIds)
+  }
+
+  moveSelectionLayer(direction: 'forward' | 'backward'): void {
+    if (!this.selectedIds.length) return
+    const shapes = this.getCurrentPageShapes()
+    const selected = new Set(this.selectedIds)
+    const ordered = direction === 'forward' ? shapes : [...shapes].reverse()
+    let changed = false
+    this.pushHistory(this.snapshotRecords())
+    for (const shape of ordered) {
+      if (!selected.has(shape.id)) continue
+      const index = shapes.findIndex((item) => item.id === shape.id)
+      const swapIndex = direction === 'forward' ? index + 1 : index - 1
+      if (swapIndex < 0 || swapIndex >= shapes.length) continue
+      const other = shapes[swapIndex]
+      const currentRecord = this.records.get(shape.id)
+      const otherRecord = this.records.get(other.id)
+      if (currentRecord && otherRecord) {
+        const value = currentRecord.index
+        currentRecord.index = otherRecord.index
+        otherRecord.index = value
+        changed = true
+      }
+    }
+    if (!changed) {
+      this.undoStack.pop()
+      return
+    }
+    void this.queueReload()
+    this.emitDocument(this.selectedIds)
+  }
+
   updateSelectedStyles(patch: CanvasStylePatch): void {
     if (!this.selectedIds.length) return
-    this.syncFromEngine()
+    this.pushHistory(this.snapshotRecords())
     for (const id of this.selectedIds) {
       const record = this.records.get(id)
       if (!record || record.typeName !== 'shape') continue
@@ -711,7 +965,7 @@ export class CoartFerricEditor implements EditorLike {
       if (patch.opacity !== undefined) record.opacity = clamp(patch.opacity, 0.1, 1)
     }
     void this.queueReload()
-    this.emitChange()
+    this.emitDocument(this.selectedIds)
   }
 
   setCurrentTool(tool: CanvasTool): void {
@@ -720,6 +974,7 @@ export class CoartFerricEditor implements EditorLike {
       this.draftStart = null
       this.options.onDraftRectangle?.(null)
     }
+    this.events.emit('tool', { tool })
     this.emitChange()
   }
 
@@ -792,10 +1047,122 @@ export class CoartFerricEditor implements EditorLike {
   async commitText(id: string, value: string): Promise<void> {
     const record = this.records.get(id)
     if (!record || record.typeName !== 'shape' || record.type !== 'text') return
+    this.pushHistory(this.snapshotRecords())
     record.props = { ...record.props, text: value }
     this.selectedIds = [id]
     await this.queueReload()
-    this.emitChange()
+    this.emitSelection()
+    this.emitDocument([id])
+  }
+
+  beginResize(handle: ResizeHandle, point: CanvasPoint): void {
+    const bounds = this.getSelectionBounds()
+    if (!bounds || this.transform) return
+    this.transform = {
+      kind: 'resize',
+      handle,
+      start: this.worldPointFromScreen(point),
+      bounds,
+      originals: new Map(this.selectedIds
+        .map((id) => this.records.get(id))
+        .filter((record): record is AnyCanvasShape => record?.typeName === 'shape')
+        .map((record) => [record.id, clone(record)])),
+      before: this.snapshotRecords()
+    }
+    this.emitInteraction('started', 'resize')
+  }
+
+  updateResize(point: CanvasPoint): void {
+    const session = this.transform
+    if (!session || session.kind !== 'resize' || !session.handle) return
+    const world = this.worldPointFromScreen(point)
+    const dx = world.x - session.start.x
+    const dy = world.y - session.start.y
+    let { left, top, right, bottom } = session.bounds
+    if (session.handle.includes('w')) left = Math.min(right - 8, left + dx)
+    if (session.handle.includes('e')) right = Math.max(left + 8, right + dx)
+    if (session.handle.includes('n')) top = Math.min(bottom - 8, top + dy)
+    if (session.handle.includes('s')) bottom = Math.max(top + 8, bottom + dy)
+    const oldWidth = Math.max(1, session.bounds.right - session.bounds.left)
+    const oldHeight = Math.max(1, session.bounds.bottom - session.bounds.top)
+    const scaleX = (right - left) / oldWidth
+    const scaleY = (bottom - top) / oldHeight
+    for (const original of session.originals.values()) {
+      const record = this.records.get(original.id)
+      if (!record || record.typeName !== 'shape') continue
+      record.x = left + (numberValue(original.x, 0) - session.bounds.left) * scaleX
+      record.y = top + (numberValue(original.y, 0) - session.bounds.top) * scaleY
+      record.props.w = Math.max(1, numberValue(original.props.w, 1) * scaleX)
+      record.props.h = Math.max(1, numberValue(original.props.h, 1) * scaleY)
+    }
+    this.emitInteraction('updated', 'resize')
+  }
+
+  commitResize(): void {
+    if (this.transform?.kind !== 'resize') return
+    const session = this.transform
+    this.transform = null
+    this.pushHistory(session.before)
+    void this.queueReload()
+    this.emitInteraction('committed', 'resize')
+    this.emitDocument([...session.originals.keys()])
+  }
+
+  cancelResize(): void {
+    if (this.transform?.kind !== 'resize') return
+    const session = this.transform
+    for (const [id, shape] of session.originals) this.records.set(id, clone(shape))
+    this.transform = null
+    this.emitInteraction('cancelled', 'resize')
+  }
+
+  beginRotate(point: CanvasPoint): void {
+    const bounds = this.getSelectionBounds()
+    if (!bounds || this.transform) return
+    this.transform = {
+      kind: 'rotate',
+      start: this.worldPointFromScreen(point),
+      bounds,
+      originals: new Map(this.selectedIds
+        .map((id) => this.records.get(id))
+        .filter((record): record is AnyCanvasShape => record?.typeName === 'shape')
+        .map((record) => [record.id, clone(record)])),
+      before: this.snapshotRecords()
+    }
+    this.emitInteraction('started', 'rotate')
+  }
+
+  updateRotate(point: CanvasPoint): void {
+    const session = this.transform
+    if (!session || session.kind !== 'rotate') return
+    const world = this.worldPointFromScreen(point)
+    const center = { x: (session.bounds.left + session.bounds.right) / 2, y: (session.bounds.top + session.bounds.bottom) / 2 }
+    const startAngle = Math.atan2(session.start.y - center.y, session.start.x - center.x)
+    const nextAngle = Math.atan2(world.y - center.y, world.x - center.x)
+    const delta = (nextAngle - startAngle) * 180 / Math.PI
+    for (const original of session.originals.values()) {
+      const record = this.records.get(original.id)
+      if (record?.typeName === 'shape') record.rotation = numberValue(original.rotation, 0) + delta
+    }
+    this.emitInteraction('updated', 'rotate')
+  }
+
+  commitRotate(): void {
+    if (this.transform?.kind !== 'rotate') return
+    const session = this.transform
+    this.transform = null
+    this.pushHistory(session.before)
+    void this.queueReload()
+    this.emitInteraction('committed', 'rotate')
+    this.emitDocument([...session.originals.keys()])
+  }
+
+  cancelRotate(): void {
+    if (this.transform?.kind !== 'rotate') return
+    const session = this.transform
+    for (const [id, shape] of session.originals) this.records.set(id, clone(shape))
+    this.transform = null
+    this.emitInteraction('cancelled', 'rotate')
   }
 
   zoomAt(point: CanvasPoint, deltaY: number): void {
@@ -803,20 +1170,23 @@ export class CoartFerricEditor implements EditorLike {
     const next = clamp(this.camera.z * Math.pow(0.999, deltaY), 0.1, 4)
     this.camera = { x: point.x - before.x * next, y: point.y - before.y * next, z: next }
     this.render()
-    this.emitChange()
+    this.emitCamera()
   }
 
   panBy(deltaX: number, deltaY: number): void {
     this.camera = { ...this.camera, x: this.camera.x + deltaX, y: this.camera.y + deltaY }
     this.render()
-    this.emitChange()
+    this.emitCamera()
   }
 
   pointerDown(screenPoint: CanvasPoint, shift: boolean): void {
     if (!this.engine) return
     const point = this.worldPointFromScreen(screenPoint)
     try {
-      this.applyEffect(this.engine.pointerDown(point.x, point.y, shift))
+      this.pointerBefore = this.snapshotRecords()
+      this.pointerSceneChanged = false
+      this.emitInteraction('started', 'pointer')
+      this.applyEffect(this.engine.pointerDown(point.x, point.y, shift), false)
     } catch (error: unknown) {
       this.reportError(error)
     }
@@ -824,9 +1194,13 @@ export class CoartFerricEditor implements EditorLike {
 
   pointerMove(screenPoint: CanvasPoint): void {
     if (!this.engine) return
+    this.pointerMoveCount += 1
     const point = this.worldPointFromScreen(screenPoint)
     try {
-      this.applyEffect(this.engine.pointerMove(point.x, point.y))
+      const effect = this.engine.pointerMove(point.x, point.y)
+      this.pointerSceneChanged ||= effect.scene_changed
+      this.applyEffect(effect, false)
+      this.emitInteraction('updated', 'pointer')
     } catch (error: unknown) {
       this.reportError(error)
     }
@@ -836,7 +1210,16 @@ export class CoartFerricEditor implements EditorLike {
     if (!this.engine) return
     const point = this.worldPointFromScreen(screenPoint)
     try {
-      this.applyEffect(this.engine.pointerUp(point.x, point.y))
+      const effect = this.engine.pointerUp(point.x, point.y)
+      this.pointerSceneChanged ||= effect.scene_changed
+      this.applyEffect(effect, true)
+      if (this.pointerSceneChanged && this.pointerBefore) {
+        this.pushHistory(this.pointerBefore)
+        this.emitDocument(this.selectedIds)
+      }
+      this.pointerBefore = null
+      this.pointerSceneChanged = false
+      this.emitInteraction('committed', 'pointer')
     } catch (error: unknown) {
       this.reportError(error)
     }
@@ -845,17 +1228,60 @@ export class CoartFerricEditor implements EditorLike {
   pointerCancel(): void {
     if (!this.engine) return
     try {
-      this.applyEffect(this.engine.pointerCancel())
+      this.applyEffect(this.engine.pointerCancel(), true)
+      this.pointerBefore = null
+      this.pointerSceneChanged = false
+      this.emitInteraction('cancelled', 'pointer')
     } catch (error: unknown) {
       this.reportError(error)
     }
   }
 
   handleKeyDown(event: { key: string; shiftKey: boolean; ctrlKey: boolean; altKey: boolean; metaKey: boolean; isComposing?: boolean }): boolean {
+    const command = event.ctrlKey || event.metaKey
+    if (['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return false
     if (event.isComposing && ['Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return true
+    if (command && event.key.toLowerCase() === 'z') {
+      if (event.shiftKey) this.redo()
+      else this.undo()
+      return true
+    }
+    if (command && event.key.toLowerCase() === 'd') {
+      this.duplicateSelection()
+      return true
+    }
+    if (command && event.key.toLowerCase() === 'c') {
+      this.copySelection()
+      return true
+    }
+    if (command && event.key.toLowerCase() === 'v') {
+      this.pasteClipboard()
+      return true
+    }
+    if (!command && !event.altKey) {
+      const tool = ({ v: 'select', h: 'pan', r: 'rectangle', t: 'text', d: 'draw' } as const)[event.key.toLowerCase() as 'v' | 'h' | 'r' | 't' | 'd']
+      if (tool) {
+        this.setCurrentTool(tool)
+        return true
+      }
+      if (event.key === '0') {
+        this.zoomToFit('content')
+        return true
+      }
+      if (event.key === '1') {
+        this.zoomToFit('reset')
+        return true
+      }
+      if (event.key.toLowerCase() === 'f') {
+        this.zoomToFit('selection')
+        return true
+      }
+    }
     if (event.key === 'Escape') {
+      this.cancelResize()
+      this.cancelRotate()
       this.selectedIds = []
-      this.emitChange()
+      this.emitSelection()
       return true
     }
     if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -868,7 +1294,7 @@ export class CoartFerricEditor implements EditorLike {
     }
     if (!this.engine) return false
     try {
-      this.applyEffect(this.engine.keyDown(event.key, event.shiftKey, event.ctrlKey, event.altKey, event.metaKey))
+      this.applyEffect(this.engine.keyDown(event.key, event.shiftKey, event.ctrlKey, event.altKey, event.metaKey), true)
       return false
     } catch (error: unknown) {
       this.reportError(error)
@@ -878,15 +1304,19 @@ export class CoartFerricEditor implements EditorLike {
 
   private async deleteSelected(): Promise<void> {
     if (!this.selectedIds.length) return
-    for (const id of this.selectedIds) this.records.delete(id)
+    this.pushHistory(this.snapshotRecords())
+    const deleted = [...this.selectedIds]
+    for (const id of deleted) this.records.delete(id)
     this.selectedIds = []
     await this.queueReload()
-    this.emitChange()
+    this.emitSelection()
+    this.emitDocument(deleted)
   }
 
   private async nudgeSelected(key: string, step: number): Promise<void> {
     const dx = key === 'ArrowLeft' ? -step : key === 'ArrowRight' ? step : 0
     const dy = key === 'ArrowUp' ? -step : key === 'ArrowDown' ? step : 0
+    this.pushHistory(this.snapshotRecords())
     for (const id of this.selectedIds) {
       const record = this.records.get(id)
       if (!record || record.typeName !== 'shape') continue
@@ -894,14 +1324,11 @@ export class CoartFerricEditor implements EditorLike {
       record.y = numberValue(record.y, 0) + dy
     }
     await this.queueReload()
-    this.emitChange()
+    this.emitDocument(this.selectedIds)
   }
 
   getStoreSnapshot(): CanvasSnapshot {
-    this.syncFromEngine()
-    const store: Record<string, CanvasRecord> = {}
-    for (const [id, record] of this.records) store[id] = clone(record)
-    return { schema: clone(this.schema), store }
+    return this.snapshotRecords()
   }
 
   async loadStoreSnapshot(snapshot: CanvasSnapshot): Promise<void> {
@@ -913,11 +1340,11 @@ export class CoartFerricEditor implements EditorLike {
     this.ferricIds.clear()
     this.selectedIds = []
     await this.queueReload()
+    this.events.emit('selection', { revision: this.selectionRevision, ids: [] })
     this.emitChange()
   }
 
   async toImage(ids: string[], options: CanvasImageOptions = {}): Promise<{ blob: Blob }> {
-    this.syncFromEngine()
     const selected = new Set(ids)
     const records = this.getCurrentPageShapes().filter((record) => selected.has(record.id))
     if (!records.length) throw new Error('No canvas objects selected.')
@@ -943,9 +1370,29 @@ export class CoartFerricEditor implements EditorLike {
     return () => this.listeners.delete(listener)
   }
 
+  on<K extends EditorEventType>(type: K, listener: (event: EditorChangeMap[K]) => void): () => void {
+    return this.events.on(type, listener)
+  }
+
+  getDocumentRevision(): number {
+    return this.documentRevision
+  }
+
+  getDiagnostics() {
+    return {
+      loadSceneCount: this.loadSceneCount,
+      pointerMoveCount: this.pointerMoveCount,
+      documentRevision: this.documentRevision,
+      renderRevision: this.renderRevision,
+      recordCount: this.records.size,
+      selectedIds: [...this.selectedIds]
+    }
+  }
+
   dispose(): void {
     this.disposed = true
     this.listeners.clear()
+    this.events.clear()
     this.engine?.free?.()
     this.engine = null
   }

@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CanvasToolbar } from './components/CanvasToolbar'
+import { ContextToolbar } from './components/ContextToolbar'
 import { FerricCanvas } from './components/FerricCanvas'
-import { GenerationPanel } from './components/GenerationPanel'
+import { GenerationPanel, modeForShape } from './components/GenerationPanel'
 import { SlidesViewer } from './components/SlidesViewer'
 import { StatusToast } from './components/StatusToast'
 import { blobToDataUrl } from './lib/dataUrl'
@@ -19,11 +20,40 @@ import type { AnyCanvasShape, CoartHtmlShape, EditorLike } from './types'
 export default function App() {
   const [editor, setEditor] = useState<EditorLike | null>(null)
   const [canvasReady, setCanvasReady] = useState(false)
-  const [selectedShape, setSelectedShape] = useState<AnyCanvasShape | null>(null)
+  const [selectedShapes, setSelectedShapes] = useState<AnyCanvasShape[]>([])
+  const [generationOpen, setGenerationOpen] = useState(false)
   const [aspectId, setAspectId] = useState('4:3')
   const [status, setStatus] = useState('')
   const [slides, setSlides] = useState<CoartHtmlShape[]>([])
   const statusTimerRef = useRef<number | undefined>(undefined)
+  const lastSelectionRef = useRef('')
+  const activeEditorRef = useRef<EditorLike | null>(null)
+
+  const selectedShape = selectedShapes.length === 1 ? selectedShapes[0] : null
+
+  useEffect(() => {
+    if (!editor) {
+      setSelectedShapes([])
+      return undefined
+    }
+    const updateSelection = (): void => {
+      const ids = editor.getSelectedShapeIds()
+      const shapes = ids
+        .map((id) => editor.getShape(id))
+        .filter((shape): shape is AnyCanvasShape => Boolean(shape))
+      setSelectedShapes(shapes)
+      const signature = ids.join('\u0000')
+      if (signature !== lastSelectionRef.current) {
+        lastSelectionRef.current = signature
+        setGenerationOpen(shapes.length === 1 && modeForShape(shapes[0]) !== null)
+      }
+    }
+    updateSelection()
+    // UI composition follows the compatibility aggregate so contextual
+    // overlays also reposition during camera/transient changes. Persistence
+    // remains subscribed to the typed document/selection/camera channels.
+    return editor.onChange(updateSelection)
+  }, [editor])
 
   const showStatus = useCallback((message: string) => {
     setStatus(message)
@@ -35,15 +65,19 @@ export default function App() {
 
   const handleMount = useCallback((nextEditor: EditorLike | null): void => {
     if (!nextEditor) {
+      activeEditorRef.current = null
       setCanvasReady(false)
       setEditor(null)
+      setSelectedShapes([])
       return
     }
+    activeEditorRef.current = nextEditor
     setCanvasReady(false)
     setEditor(nextEditor)
     void (async () => {
       try {
         const state = await loadCanvasState()
+        if (activeEditorRef.current !== nextEditor) return
         if (state.snapshot?.store && state.snapshot?.schema) {
           await nextEditor.loadStoreSnapshot(state.snapshot)
         } else {
@@ -54,16 +88,12 @@ export default function App() {
         }
         if (state.viewState?.camera) nextEditor.setCamera(state.viewState.camera)
         if (state.selection?.selectedShapeIds?.length) nextEditor.setSelection(state.selection.selectedShapeIds)
-        const updateSelection = () => {
-          const ids = nextEditor.getSelectedShapeIds()
-          setSelectedShape(ids.length === 1 ? nextEditor.getShape(ids[0]) ?? null : null)
-        }
-        updateSelection()
-        nextEditor.onChange(updateSelection)
+        if (activeEditorRef.current !== nextEditor) return
         setEditor(nextEditor)
         setCanvasReady(true)
         showStatus(`畫布已載入（${state.storage || 'project'}）`)
       } catch (error: unknown) {
+        if (activeEditorRef.current !== nextEditor) return
         console.error(error)
         setCanvasReady(true)
         showStatus(`載入失敗：${error instanceof Error ? error.message : String(error)}`)
@@ -131,14 +161,22 @@ export default function App() {
       <CanvasToolbar
         editor={editor}
         ready={canvasReady}
-        selectedShape={selectedShape}
+        selectedShapes={selectedShapes}
+        generationOpen={generationOpen}
         aspectId={aspectId}
         onAspectChange={setAspectId}
         onAnnotate={annotate}
         onOpenSlides={openSlides}
         onSaveNow={saveNow}
       />
-      <GenerationPanel editor={editor} selectedShape={selectedShape} onStatus={showStatus} />
+      <ContextToolbar
+        editor={editor}
+        selectedShapes={selectedShapes}
+        onAnnotate={annotate}
+        onOpenSlides={openSlides}
+        onGenerate={() => setGenerationOpen(true)}
+      />
+      <GenerationPanel editor={editor} selectedShape={selectedShape} open={generationOpen} onClose={() => setGenerationOpen(false)} onStatus={showStatus} />
       <StatusToast message={status} />
       {slides.length > 0 && <SlidesViewer slides={slides} onClose={() => setSlides([])} />}
     </div>
