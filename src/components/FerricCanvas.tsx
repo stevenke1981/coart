@@ -140,7 +140,7 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
     const point = pointerPosition(event)
     const shell = event.currentTarget
     shell.focus()
-    if (event.button === 1 || event.altKey) {
+    if (event.button === 1 || event.altKey || editor.getCurrentTool() === 'pan') {
       event.preventDefault()
       shell.setPointerCapture(event.pointerId)
       interactionRef.current = { pointerId: event.pointerId, mode: 'pan', lastScreen: point, points: [] }

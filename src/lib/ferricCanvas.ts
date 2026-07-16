@@ -10,6 +10,7 @@ import type {
   CanvasRecord,
   CanvasShapeInput,
   CanvasSnapshot,
+  CanvasStylePatch,
   CanvasTool,
   CanvasViewportBounds,
   EditorLike,
@@ -208,6 +209,18 @@ function stroke(value: unknown, fallback: string, width: unknown, dash: number[]
   }
 }
 
+function strokeForRecord(record: AnyCanvasShape, fallback: string, defaultStyle: 'solid' | 'dashed' = 'solid'): FerricCommon['stroke'] {
+  const width = Math.max(0.5, numberValue(record.props.strokeWidth, 2))
+  const style = stringValue(record.props.strokeStyle, defaultStyle)
+  if (style === 'none') return null
+  const dash = style === 'dashed'
+    ? [Math.max(6, width * 3), Math.max(4, width * 2)]
+    : style === 'dotted'
+      ? [width, width * 2.25]
+      : []
+  return stroke(record.props.stroke, fallback, width, dash)
+}
+
 function metadataForRecord(record: AnyCanvasShape): Record<string, unknown> {
   return {
     coartId: record.id,
@@ -307,7 +320,7 @@ function objectForRecord(record: AnyCanvasShape, records: Map<string, CanvasReco
   if (type === 'line' || type === 'arrow') {
     return {
       type: 'line',
-      common: commonForRecord(record, ferricId, { kind: 'none' }, stroke(record.props.stroke, '#6d5ef7', record.props.strokeWidth, [])),
+      common: commonForRecord(record, ferricId, { kind: 'none' }, strokeForRecord(record, '#6d5ef7')),
       x1: 0,
       y1: 0,
       x2: numberValue(record.props.x2, width),
@@ -320,7 +333,7 @@ function objectForRecord(record: AnyCanvasShape, records: Map<string, CanvasReco
     if (commands.length > 0) {
       return {
         type: 'path',
-        common: commonForRecord(record, ferricId, { kind: 'none' }, stroke(record.props.stroke, '#6d5ef7', record.props.strokeWidth, [])),
+        common: commonForRecord(record, ferricId, { kind: 'none' }, strokeForRecord(record, '#6d5ef7')),
         commands
       }
     }
@@ -334,12 +347,7 @@ function objectForRecord(record: AnyCanvasShape, records: Map<string, CanvasReco
       record,
       ferricId,
       paint(record.props.fill, isFrame ? { r: 109, g: 94, b: 247, a: 18 } : { r: 255, g: 255, b: 255, a: 235 }),
-      stroke(
-        record.props.stroke,
-        isFrame ? '#8b7fff' : '#6d5ef7',
-        record.props.strokeWidth,
-        isFrame ? [8, 6] : []
-      )
+      strokeForRecord(record, isFrame ? '#8b7fff' : '#6d5ef7', isFrame ? 'dashed' : 'solid')
     ),
     width,
     height,
@@ -651,6 +659,48 @@ export class CoartFerricEditor implements EditorLike {
 
   setSelection(ids: string[]): void {
     this.selectedIds = ids.filter((id) => this.records.get(id)?.typeName === 'shape')
+    this.emitChange()
+  }
+
+  duplicateSelection(): void {
+    if (!this.selectedIds.length) return
+    this.syncFromEngine()
+    const idMap = new Map(this.selectedIds.map((id) => [id, createCoartShapeId()]))
+    const duplicatedIds: string[] = []
+    for (const id of this.selectedIds) {
+      const record = this.records.get(id)
+      if (!record || record.typeName !== 'shape') continue
+      const copy = clone(record) as AnyCanvasShape
+      copy.id = idMap.get(id) as string
+      copy.parentId = idMap.get(String(record.parentId)) || record.parentId
+      copy.index = nextIndex(this.records, String(copy.parentId || this.currentPageId))
+      copy.x = numberValue(record.x, 0) + 24
+      copy.y = numberValue(record.y, 0) + 24
+      this.records.set(copy.id, copy)
+      duplicatedIds.push(copy.id)
+    }
+    this.selectedIds = duplicatedIds
+    void this.queueReload()
+    this.emitChange()
+  }
+
+  deleteSelection(): void {
+    void this.deleteSelected()
+  }
+
+  updateSelectedStyles(patch: CanvasStylePatch): void {
+    if (!this.selectedIds.length) return
+    this.syncFromEngine()
+    for (const id of this.selectedIds) {
+      const record = this.records.get(id)
+      if (!record || record.typeName !== 'shape') continue
+      if (patch.fill !== undefined) record.props.fill = patch.fill
+      if (patch.stroke !== undefined) record.props.stroke = patch.stroke
+      if (patch.strokeWidth !== undefined) record.props.strokeWidth = Math.max(0.5, patch.strokeWidth)
+      if (patch.strokeStyle !== undefined) record.props.strokeStyle = patch.strokeStyle
+      if (patch.opacity !== undefined) record.opacity = clamp(patch.opacity, 0.1, 1)
+    }
+    void this.queueReload()
     this.emitChange()
   }
 

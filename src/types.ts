@@ -151,7 +151,17 @@ export interface CanvasViewportBounds {
   h: number
 }
 
-export type CanvasTool = 'select' | 'draw' | 'rectangle' | 'text'
+export type CanvasTool = 'select' | 'pan' | 'draw' | 'rectangle' | 'text'
+
+export type CanvasStrokeStyle = 'solid' | 'dashed' | 'dotted' | 'none'
+
+export interface CanvasStylePatch {
+  fill?: string
+  stroke?: string
+  strokeWidth?: number
+  strokeStyle?: CanvasStrokeStyle
+  opacity?: number
+}
 
 export interface CanvasPoint {
   x: number
@@ -192,6 +202,9 @@ export interface EditorLike {
   createShape(input: CanvasShapeInput): void
   select(id: string): void
   setSelection(ids: string[]): void
+  duplicateSelection(): void
+  deleteSelection(): void
+  updateSelectedStyles(patch: CanvasStylePatch): void
   setCurrentTool(tool: CanvasTool): void
   getCurrentTool(): CanvasTool
   beginRectangle(point: CanvasPoint): void

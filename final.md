@@ -2,6 +2,19 @@
 
 本交付在獨立 clean-room `coart` 專案上完成 v0.2 儲存與安裝可靠性升級，不依賴 Cowart 原始碼或品牌資產。
 
+## 2026-07-16 分區式畫布操作介面
+
+- 將原本會在窄視窗溢出的單列工具列改為 Coart 自有的分區式畫布 chrome：左上文件操作、右側物件樣式、底部創作工具與左下／窄視窗右上縮放控制。
+- 底部工具列保留選取、平移、框線、AI 圖片比例與 slot、手繪、文字、AI HTML、Slides 與播放工作流；右側面板可直接調整填色、線色、不透明度、線型與粗細。
+- 新增可用的選取物件複製／刪除與平移工具，Ferric scene 會保存新增的 `fill`、`stroke`、`strokeStyle`、`strokeWidth` 與 `opacity` 狀態。
+- 控制列改以 viewport 固定定位，保留既有 640px intrinsic height 防白屏邊界，但在較矮的 standalone／Widget viewport 中仍能看見底部工具列。
+- Chromium smoke 已驗證頂部文件列、右側樣式面板、底部 dock 與 pan／rectangle／text 工具均實際掛載且位置有效；`npm run quality` 全部通過（14/14 tests、typecheck、build、stdio／HTTP MCP probes 與 Widget smoke）。
+
+### 介面邊界
+
+- 目前仍是單頁工作流，左上「頁面 1」是目前頁面指示；多頁新增、排序與切換尚未實作。
+- 樣式面板只修改已選取的 Ferric 物件，不會把偏好寫入 browser localStorage，也不會變更未選取或專案外資產。
+
 ## 2026-07-16 Ferric Canvas 重寫
 
 - 前端畫布已由 Fabric.js 改為 Ferric Canvas `@ferric-canvas/web`：Rust WASM scene engine + trusted SVG renderer；Coart schema/store、MCP storage 與 project-local `canvas/` 資產格式維持相容。

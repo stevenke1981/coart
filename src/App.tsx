@@ -131,6 +131,7 @@ export default function App() {
       <CanvasToolbar
         editor={editor}
         ready={canvasReady}
+        selectedShape={selectedShape}
         aspectId={aspectId}
         onAspectChange={setAspectId}
         onAnnotate={annotate}
