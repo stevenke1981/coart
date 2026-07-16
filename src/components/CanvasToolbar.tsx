@@ -1,6 +1,6 @@
 import { FileCode2, ImagePlus, MonitorPlay, MousePointer2, PencilLine, Presentation, Save, Square, Type } from 'lucide-react'
 import { ASPECT_PRESETS, COART_KINDS, DEFAULT_HTML_SIZE, DEFAULT_SLIDES_SIZE } from '../constants'
-import { createCoartShapeId } from '../lib/fabricCanvas'
+import { createCoartShapeId } from '../lib/ferricCanvas'
 import type { CoartKind, EditorLike } from '../types'
 
 interface FrameOptions {

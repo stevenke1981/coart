@@ -20,10 +20,10 @@
     "start:http": "node scripts/start-http.ts"
   },
   "dependencies": {
+    "@ferric-canvas/web": "file:vendor/ferric-canvas",
     "@modelcontextprotocol/ext-apps": "^1.7.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "fabric": "^7.4.0",
     "fractional-indexing": "^3.2.0",
     "lucide-react": "^1.24.0",
     "react": "^19.0.0",

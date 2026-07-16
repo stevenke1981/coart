@@ -28,6 +28,16 @@ function widgetSourceStamp() {
     }
   }
   walk(join(root, 'src'))
+  for (const file of [
+    join(root, 'vendor', 'ferric-canvas', 'source-revision.txt'),
+    join(root, 'vendor', 'ferric-canvas', 'package.json'),
+    join(root, 'vendor', 'ferric-canvas', 'dist', 'index.js'),
+    join(root, 'vendor', 'ferric-canvas', 'dist', 'index.d.ts'),
+    join(root, 'vendor', 'ferric-canvas', 'wasm', 'canvas_wasm.js'),
+    join(root, 'vendor', 'ferric-canvas', 'wasm', 'canvas_wasm_bg.wasm')
+  ]) {
+    if (existsSync(file)) files.push(file)
+  }
   const hash = createHash('sha256')
   for (const file of files) {
     hash.update(file.slice(root.length))
@@ -214,7 +224,7 @@ export async function widgetHtml() {
   if (cachedHtml) return cachedHtml
   const base = await inlineBuild()
   const injected = `<script>${appsBundle().replaceAll('</script', '<\\/script')}</script><script>${bridgeScript().replaceAll('</script', '<\\/script')}</script>`
-  // The Fabric.js bundle may contain HTML strings of its own, including `</head>`.
+  // The Ferric Canvas bundle may contain HTML strings of its own, including `</head>`.
   // Inject into the outer document's final closing head tag, never the first
   // embedded template occurrence.
   const headClose = base.lastIndexOf('</head>')
@@ -248,7 +258,7 @@ export function registerCoartWidgetResource(server: any) {
   for (const [index, uri] of [WIDGET_URI, ...LEGACY_WIDGET_URIS].entries()) {
     registerAppResource(server, index === 0 ? `coart-canvas-widget-${manifest.version}` : `coart-canvas-widget-legacy-${index}`, uri, {
       title: 'Coart Canvas',
-      description: 'A Fabric.js-powered native Codex canvas with project-local persistence.',
+      description: 'A Ferric Canvas-powered native Codex canvas with project-local persistence.',
       _meta: metadata
     }, async () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: await widgetHtml(), _meta: metadata }] }))
   }

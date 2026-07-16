@@ -7,7 +7,7 @@ Codex host
   ↕ MCP Apps protocol
 Widget bridge
   ↕ callServerTool / sendMessage
-React + Fabric.js application
+React + Ferric Canvas WASM/SVG application
   ↕ JSON snapshot / data URLs
 MCP server
   ↕ safe filesystem operations
@@ -15,7 +15,7 @@ MCP server
 
 External editor window (Chrome／Edge app mode)
   ↕ token-authenticated loopback HTTP
-Coart standalone React + Fabric.js application
+Coart standalone React + Ferric Canvas WASM/SVG application
   ↕ JSON snapshot / data URLs
 MCP storage layer
   ↕ safe filesystem operations
@@ -24,15 +24,15 @@ MCP storage layer
 
 ## 前端模組
 
-- `App.tsx`：組合 Fabric.js、狀態載入、選取同步與面板。
-- `FabricCanvas.tsx`：建立 Fabric.js canvas、縮放／平移／手繪、框線拖曳、文字編輯與瀏覽器生命週期。
+- `App.tsx`：組合 Ferric canvas facade、狀態載入、選取同步與面板。
+- `FerricCanvas.tsx`：掛載 Ferric Canvas SVG scene、縮放／平移／手繪、框線拖曳、文字編輯與瀏覽器生命週期。
 - `CanvasToolbar.tsx`：建立 AI image、AI HTML、Slides slot、框線／文字工具與標註操作。
 - `GenerationPanel.tsx`：prompt、參考圖、頁數與 follow-up message。
 - `SlidesViewer.tsx`：讀取 Slides frame 的子 HTML shape 並播放。
-- `SlidesViewer.tsx`：使用 `iframe srcDoc` 顯示單檔 HTML；畫布上的 HTML slot 以可編輯 Fabric 物件呈現。
+- `SlidesViewer.tsx`：使用 `iframe srcDoc` 顯示單檔 HTML；畫布上的 HTML slot 以可選取的 Ferric rect placeholder 呈現。
 - `coartClient.ts`：MCP bridge、project target recovery、standalone editor loopback API 與 localStorage fallback。
 - `prompts.ts`：集中管理送給 Codex 的工作流提示詞。
-- `fabricCanvas.ts`：Fabric 物件與 Coart `schema/store` 快照之間的轉換 facade。
+- `ferricCanvas.ts`：Ferric Scene JSON 與 Coart `schema/store` 快照之間的轉換 facade；保留 Coart id、props 與 metadata，讓引擎可替換而不破壞持久化格式。
 
 ## MCP 模組
 

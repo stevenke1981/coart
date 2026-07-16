@@ -1,5 +1,7 @@
 node_modules/
 dist/
+!vendor/ferric-canvas/dist/
+!vendor/ferric-canvas/dist/**
 .codebase-memory/
 .opencode/
 .codex/evolution/state/

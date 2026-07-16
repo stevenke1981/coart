@@ -17,10 +17,16 @@ button, textarea, input, select { font: inherit; }
 button { cursor: pointer; }
 
 .coart-app { width: 100%; min-height: 640px; height: max(640px, 100vh); position: relative; overflow: hidden; }
-.coart-fabric-shell { width: 100%; height: 100%; min-height: 640px; position: relative; overflow: hidden; }
-.coart-fabric-shell .canvas-container { width: 100% !important; height: 100% !important; min-height: 640px; }
-.coart-fabric-shell canvas { display: block; }
-.coart-fabric-shell .upper-canvas { touch-action: none; }
+.coart-ferric-shell { width: 100%; height: 100%; min-height: 640px; position: relative; overflow: hidden; outline: none; background: #f7f7fb; touch-action: none; overscroll-behavior: none; }
+.coart-ferric-scene { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; pointer-events: none; }
+.coart-ferric-scene svg { display: block; width: 1280px; height: 720px; }
+.coart-ferric-overlay { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.coart-ferric-selection, .coart-ferric-draft { position: absolute; border: 2px solid #6d5ef7; border-radius: 4px; background: rgba(109,94,247,.06); }
+.coart-ferric-selection { background: transparent; box-shadow: 0 0 0 1px rgba(255,255,255,.8); }
+.coart-ferric-draft { border-style: dashed; }
+.coart-ferric-draw-preview { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.coart-ferric-text-editor { position: absolute; z-index: 8; resize: both; min-width: 100px; min-height: 42px; padding: 5px; border: 2px solid #6d5ef7; border-radius: 5px; outline: none; background: rgba(255,255,255,.96); color: #17161d; font: 28px/1.2 Inter, "Segoe UI", sans-serif; }
+.coart-ferric-error { position: absolute; z-index: 20; left: 16px; bottom: 16px; max-width: min(620px, calc(100% - 32px)); padding: 8px 12px; border-radius: 10px; background: #842029; color: white; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
 
 .coart-toolbar {
   position: absolute;

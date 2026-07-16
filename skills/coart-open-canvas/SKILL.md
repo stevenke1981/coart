@@ -1,6 +1,6 @@
 ---
 name: coart-open-canvas
-description: Open the Coart Fabric.js canvas in an external editor window for the active project and return project-local images to the same Codex task.
+description: Open the Coart Ferric Canvas WebAssembly/SVG canvas in an external editor window for the active project and return project-local images to the same Codex task.
 ---
 
 # Coart Open Canvas

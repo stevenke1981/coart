@@ -2,6 +2,20 @@
 
 本交付在獨立 clean-room `coart` 專案上完成 v0.2 儲存與安裝可靠性升級，不依賴 Cowart 原始碼或品牌資產。
 
+## 2026-07-16 Ferric Canvas 重寫
+
+- 前端畫布已由 Fabric.js 改為 Ferric Canvas `@ferric-canvas/web`：Rust WASM scene engine + trusted SVG renderer；Coart schema/store、MCP storage 與 project-local `canvas/` 資產格式維持相容。
+- `src/lib/ferricCanvas.ts` 是 Coart facade，將 Coart records 映射到 Ferric Scene JSON，並以 metadata 保留原始 Coart id、props、meta、parent 與 index；`src/components/FerricCanvas.tsx` 負責 SVG scene、選取框、拖曳框線、手繪 preview、DOM textarea 文字編輯與 camera。
+- Ferric web package 由 Ferric source revision `8eae06b8a61371f95ae7e916778ddc86c7829e1f` 建置後固定放入 `vendor/ferric-canvas/`，避免安裝時依賴未發佈的 npm 套件或即時 Rust toolchain。
+- Chromium widget smoke 已更新為檢查 `.coart-ferric-shell`、`.coart-ferric-scene` 與 Ferric SVG；實際結果 `mounted: true`、`canvasReady: true`、PNG `12,109` bytes，畫面不再出現 tldraw production license overlay。
+- 對 Ferric Canvas 的 mutation API、viewport contract、asset resolver、文字編輯協定、schema fixtures 與發佈流程建議已寫入 [`docs/ferric-canvas-feedback.md`](docs/ferric-canvas-feedback.md)。
+
+### Ferric 邊界
+
+- Ferric web API 目前沒有公開的 scene mutation transaction；Coart 結構性變更會重建 engine，輸入事件則透過 bridge 後同步回 Coart records。
+- SVG renderer 只接受安全 raster data URL；Coart 會先 hydrate project-local image，其他 image reference 顯示安全 placeholder。
+- Ferric package 目前以 vendor artifact 形式提交，升級時必須重新建置 WASM、dist 並更新 `vendor/ferric-canvas/source-revision.txt`。
+
 ## 2026-07-15 sidebar 預設與 MCP proxy 儲存失敗修正
 
 - `render_coart_canvas` 未指定模式時現在要求 `sidebar`；明確指定 `inline` 仍可使用，舊 `fullscreen` 請求維持 inline fallback。

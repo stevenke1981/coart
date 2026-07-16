@@ -1,0 +1,21 @@
+{
+  "name": "canvas-wasm",
+  "type": "module",
+  "description": "Browser bridge and wasm-bindgen API for Ferric Canvas",
+  "version": "0.1.0",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stevenke1981/ferric-canvas"
+  },
+  "files": [
+    "canvas_wasm_bg.wasm",
+    "canvas_wasm.js",
+    "canvas_wasm.d.ts"
+  ],
+  "main": "canvas_wasm.js",
+  "types": "canvas_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

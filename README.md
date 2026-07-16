@@ -1,6 +1,6 @@
 # Coart
 
-Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布插件。它使用 Fabric.js 顯示與編輯畫布，透過 MCP Widget 與 Codex 溝通，並將畫布與資產保存在使用者目前專案的 `canvas/` 目錄。
+Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布插件。它使用 Ferric Canvas WebAssembly engine 與受信任的 SVG renderer 顯示與編輯畫布，透過 MCP Widget 與 Codex 溝通，並將畫布與資產保存在使用者目前專案的 `canvas/` 目錄。
 
 > 本專案是依公開功能與公開介面重新設計，不包含 Cowart 原始碼、圖示、品牌文字或圖片資產。
 
@@ -9,7 +9,7 @@ Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布
 - Codex 原生 MCP Widget（預設 sidebar，inline 為明確指定的 fallback）與獨立 Coart 編輯器視窗。
 - `open_coart_editor` 以受 token 保護的 loopback HTTP bridge 開啟外部編輯器，狀態與圖片固定保存到目前專案的 `canvas/`。
 - `get_coart_latest_image` 與 `read_coart_asset` 以 MCP image content 將專案圖片讀回同一個 Codex 對話。
-- Fabric.js 無限畫布與本機開發模式；inline、sidebar 與外部編輯器共用同一個渲染核心。
+- Ferric Canvas WebAssembly／SVG 無限畫布與本機開發模式；inline、sidebar 與外部編輯器共用同一個 Coart facade。
 - 畫布工具支援拖曳建立框線，以及點擊新增可直接雙擊／輸入編輯的文字物件。
 - v2 manifest、per-page snapshot、相容回復副本、選取／視角與資產持久化。
 - v1 snapshot 自動相容，下一次保存遷移到 v2。
@@ -73,7 +73,7 @@ Node.js 22.6+ 以 type stripping 直接執行 MCP entrypoint、tests 與 probe s
 
 ## Widget HTML 大小與自包含載入
 
-ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 現在直接傳送自包含 HTML；`npm run probe:mcp` 會檢查 sidebar 預設、inline fallback、資源大小與 bridge 內容，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/Fabric.js 已掛載。外部編輯器沿用同一份自包含 HTML，但由受 token 保護的本機 loopback server 提供，不需要 MCP Apps renderer。
+ChatGPT/Codex host 對 Widget HTML 可能有未公開的大小限制。Coart 現在直接傳送自包含 HTML；`npm run probe:mcp` 會檢查 sidebar 預設、inline fallback、資源大小與 bridge 內容，`npm run probe:widget` 會實際啟動 Chrome 驗證 React/Ferric Canvas SVG scene 已掛載。外部編輯器沿用同一份自包含 HTML，但由受 token 保護的本機 loopback server 提供，不需要 MCP Apps renderer。
 
 MCP Apps 的[官方規格](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx)要求 Widget resource 是有效 HTML5；[Apps SDK 文件](https://developers.openai.com/apps-sdk/build/mcp-server/)說明 CSP metadata 與 resource registration，但沒有公布固定 HTML byte 上限，實際 host 仍應在登入後的 Developer Mode 進行驗收。
 

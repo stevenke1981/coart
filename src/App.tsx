@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import { CanvasToolbar } from './components/CanvasToolbar'
-import { FabricCanvas } from './components/FabricCanvas'
+import { FerricCanvas } from './components/FerricCanvas'
 import { GenerationPanel } from './components/GenerationPanel'
 import { SlidesViewer } from './components/SlidesViewer'
 import { StatusToast } from './components/StatusToast'
 import { blobToDataUrl } from './lib/dataUrl'
-import { createEmptyCanvasSnapshot } from './lib/fabricCanvas'
+import { createEmptyCanvasSnapshot } from './lib/ferricCanvas'
 import { annotationPrompt } from './lib/prompts'
 import {
   loadCanvasState,
@@ -127,7 +127,7 @@ export default function App() {
 
   return (
     <div className="coart-app">
-      <FabricCanvas onReady={handleMount} />
+      <FerricCanvas onReady={handleMount} />
       <CanvasToolbar
         editor={editor}
         aspectId={aspectId}

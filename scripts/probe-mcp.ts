@@ -108,15 +108,15 @@ try {
   if (/html,body(?:,#root)?\{[^}]*height:100%/.test(decodedHtml)
     || !/html,body(?:,#root)?\{[^}]*min-height:640px/.test(decodedHtml)
     || !/\.coart-app\{[^}]*min-height:640px/.test(decodedHtml)
-    || !/\.coart-fabric-shell\{[^}]*min-height:640px/.test(decodedHtml)) {
+    || !/\.coart-ferric-shell\{[^}]*min-height:640px/.test(decodedHtml)) {
     throw new Error('Widget must keep a non-zero intrinsic height for MCP host autoResize handshakes.')
   }
   if (html.includes('data-coart-loader') || html.includes('DecompressionStream') || html.includes('document.importNode')) {
     throw new Error('Widget unexpectedly contains the legacy runtime document-rewrite loader.')
   }
   if (!decodedHtml.includes('<style>') || !decodedHtml.includes('<script>')) throw new Error('Widget build was not inlined.')
-  if (!decodedHtml.includes('coart-fabric-canvas') || !decodedHtml.includes('fabric')) {
-    throw new Error('Widget did not include the self-contained Fabric.js canvas bundle.')
+  if (!decodedHtml.includes('coart-ferric-scene') || !decodedHtml.includes('Ferric')) {
+    throw new Error('Widget did not include the self-contained Ferric Canvas SVG bundle.')
   }
   const outerHeadClose = decodedHtml.lastIndexOf('</head>')
   const bridgeBundle = decodedHtml.indexOf('__COART_EXT_APPS__')

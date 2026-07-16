@@ -97,7 +97,7 @@ server.registerTool('get_coart_canvas_state', {
 
 server.registerTool('save_coart_canvas_state', {
   title: 'Save Coart Canvas State',
-  description: 'Use this when the widget needs to persist a Coart/Fabric canvas snapshot and localize data URL assets.',
+  description: 'Use this when the widget needs to persist a Coart/Ferric Canvas snapshot and localize data URL assets.',
   inputSchema: { ...targetSchema, snapshot: z.any() },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
 }, async (input: any = {}) => result('Saved Coart canvas state.', await saveCanvasSnapshot(input, input.snapshot)))
