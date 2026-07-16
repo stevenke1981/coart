@@ -6,7 +6,7 @@ Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布
 
 ## 已實作
 
-- Codex 原生 MCP Widget（預設 sidebar，inline 為明確指定的 fallback）與獨立 Coart 編輯器視窗。
+- Codex 原生 MCP Widget（可直接在對話中編輯）與獨立 Coart 編輯器視窗。
 - `open_coart_editor` 以受 token 保護的 loopback HTTP bridge 開啟外部編輯器，狀態與圖片固定保存到目前專案的 `canvas/`。
 - `get_coart_latest_image` 與 `read_coart_asset` 以 MCP image content 將專案圖片讀回同一個 Codex 對話。
 - Ferric Canvas WebAssembly／SVG 無限畫布與本機開發模式；inline、sidebar 與外部編輯器共用同一個 Coart facade。
@@ -15,7 +15,8 @@ Coart 是一個以 **clean-room 方式重新實作**的 Codex 原生無限畫布
 - v1 snapshot 自動相容，下一次保存遷移到 v2。
 - 資產 checksum、引用與保護標記。
 - AI 圖片框、AI HTML 框、AI Slides 容器。
-- 參考圖片保存與 follow-up prompt 傳送。
+- 參考圖片保存與 Codex 對話內 follow-up 傳送。
+- 直接更新既有圖片 shape；舊圖片資產保留在專案內，方便回復與比較。
 - 圖片插入／替換、HTML 插入／更新。
 - 多選形狀匯出成標註截圖，再交給 Codex 進行修改。
 - HTML Slides 預覽與全螢幕播放。
@@ -39,9 +40,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-local.ps1
 Open the Coart canvas for this project.
 ```
 
-開啟畫布的預設流程是呼叫 `open_coart_editor`，由 Chrome／Edge 以獨立 app 視窗開啟 Coart；它只監聽 `127.0.0.1`，並以一次性 token 保護該專案的 API。編輯器與 Codex 對話仍使用同一個專案目錄，所有 snapshot 與圖片都寫入 `<projectDir>/canvas/`。完成編輯後回到原對話，要求「讀取最新圖片」即可由 `get_coart_latest_image` 將實際圖片內容回傳給 Codex；原始圖片不會被自動刪除。
+開啟畫布的預設流程是呼叫 `render_coart_canvas` 並指定 `displayMode: "inline"`，讓畫布控制列與 Codex 對話共用 MCP Apps `sendMessage` bridge。你可以直接在畫布輸入修改內容，Coart 會把 follow-up 送入目前對話，Codex 產生新圖後可直接呼叫 `update_coart_image` 回寫既有圖片；不需要複製或貼回提示詞。所有 snapshot 與圖片都寫入 `<projectDir>/canvas/`，原始圖片資產會保留。
 
-獨立視窗沒有 Codex host 的 follow-up bridge，因此畫布內產生的提示詞會先複製到剪貼簿，貼回同一個 Codex 對話即可繼續工作。`render_coart_canvas` 未指定 `displayMode` 時預設要求 Codex host 放到 `sidebar`；需要對話內嵌時才明確指定 `inline`。Widget bridge 只向 MCP Apps SDK 宣告標準的 inline 能力，sidebar 作為 Codex host 的放置偏好傳遞，避免非標準 mode 讓初始化失敗。
+若明確要求獨立 Chrome／Edge 視窗，仍可呼叫 `open_coart_editor`。該視窗會將 follow-up 寫入 project-local `canvas/coart-follow-up.json`；回到對話後說「繼續處理」，Codex 呼叫 `get_coart_pending_request` 讀取並處理，再以 `clear_coart_pending_request` 清除，整個流程不需要剪貼簿。`render_coart_canvas` 未指定模式時仍可使用 sidebar；對話內直接編輯建議指定 `inline`。Widget bridge 只向 MCP Apps SDK 宣告標準的 inline 能力，sidebar 作為 Codex host 的放置偏好傳遞。
 
 Widget autosave 會依序保存 snapshot、selection 與 view state，避免同一個 MCP proxy 同時處理三個寫入請求而回傳 `MCP error -32000`。
 
@@ -90,6 +91,8 @@ MCP Apps 的[官方規格](https://github.com/modelcontextprotocol/ext-apps/blob
 - `read_coart_asset`
 - `get_coart_latest_image`
 - `insert_coart_image`
+- `update_coart_image`
+- `get_coart_pending_request` / `clear_coart_pending_request`
 - `insert_coart_html`
 - `download_coart_file`
 

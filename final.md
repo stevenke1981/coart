@@ -1,5 +1,17 @@
 # Coart v0.2.7 Reliability Delivery
 
+## 2026-07-16 對話內圖片編輯與更新
+
+- 開啟畫布的建議流程改為 `render_coart_canvas` + `displayMode: "inline"`，Generation／annotation controls 透過 MCP Apps `sendMessage` 直接把工作送入目前 Codex 對話，不再要求複製或貼回提示詞。
+- standalone editor 的 follow-up 改寫入 `canvas/coart-follow-up.json`，新增 FIFO `get_coart_pending_request`／`clear_coart_pending_request` 與 `/api/follow-up`；同一 project 的 enqueue／clear 以 mutex 序列化，讓使用者回到對話後以「繼續處理」取回指令，不需要剪貼簿。
+- 新增 `update_coart_image`：對既有 image shape 建立新 project-local asset，保留 shape id、位置、顯示尺寸與舊資產，適合 Codex 直接回寫圖片修改結果。
+- 更新 Coart image edit／generation／open canvas skills、README、MCP instructions 與 default prompt，明確要求 direct conversation workflow。
+
+### 驗證與邊界
+
+- `npm run quality` 通過：16/16 tests、TypeScript checks、Vite build、stdio／HTTP MCP probes 與 Chrome Widget smoke（`mounted: true`, `canvasReady: true`）。
+- standalone follow-up 仍需要使用者回到對話後說「繼續處理」讓 Codex 讀取 pending request；這是 loopback app window 沒有 host message bridge 的安全邊界，但不再需要貼提示詞。
+
 本交付在獨立 clean-room `coart` 專案上完成 v0.2 儲存與安裝可靠性升級，不依賴 Cowart 原始碼或品牌資產。
 
 ## 2026-07-16 文字物件停留修正
@@ -62,11 +74,11 @@
 - `coart-html` shape 在 Fabric 畫布上以可選取的 HTML slot placeholder 呈現；完整 HTML 仍由既有 Slides viewer 以 sandbox iframe 播放。
 - Fabric.js 目前保存可編輯物件與原始 Coart records；若要加入 pixel-level crop／paint，仍需另建影像編輯工具層。
 
-## 2026-07-15 外部編輯器視窗交付
+## 2026-07-15 外部編輯器視窗交付（後續由 2026-07-16 對話內流程補強）
 
-- `open_coart_editor` 現在是開啟畫布的預設路徑：以 token 保護的 `127.0.0.1` loopback server 提供自包含 Coart 頁面，並由 Chrome／Edge app mode 開啟獨立視窗。
+- `open_coart_editor` 以 token 保護的 `127.0.0.1` loopback server 提供自包含 Coart 頁面，並由 Chrome／Edge app mode 開啟獨立視窗；目前預設開啟流程已改為 Codex 內的 `render_coart_canvas` inline Widget。
 - standalone 頁面透過同一個 project-bound API 寫入 `<projectDir>/canvas/`；不依賴 Codex Desktop 的 MCP Apps inline renderer，也不會把專案檔案暴露成任意靜態檔案。
-- `get_coart_latest_image` 與 `read_coart_asset` 會回傳標準 MCP image content，讓同一個 Codex task 能看見實際圖片並繼續對話。外部視窗沒有 host follow-up bridge，因此 prompt 會複製到剪貼簿，需貼回原對話。
+- `get_coart_latest_image` 與 `read_coart_asset` 會回傳標準 MCP image content，讓同一個 Codex task 能看見實際圖片並繼續對話。外部視窗的 follow-up 現在寫入 project-local pending request，由對話工具取回，不再使用剪貼簿。
 
 ### 邊界與後續
 

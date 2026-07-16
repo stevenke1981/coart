@@ -57,6 +57,22 @@ test('standalone editor serves authenticated project state and persists updates'
       headers: { 'x-coart-editor-token': editor.token }
     })
     assert.equal((await reloaded.json()).snapshot.store['page:one'].name, 'Edited')
+
+    const followUp = await fetch(`${editor.baseUrl}/api/follow-up`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-coart-editor-token': editor.token
+      },
+      body: JSON.stringify({ prompt: '把圖片改成夜景', source: 'editor-test' })
+    })
+    assert.equal(followUp.status, 200)
+    assert.equal((await followUp.json()).pending, true)
+
+    const queuedState = await fetch(`${editor.baseUrl}/api/state`, {
+      headers: { 'x-coart-editor-token': editor.token }
+    })
+    assert.equal((await queuedState.json()).snapshot.store['page:one'].name, 'Edited')
   } finally {
     await editor.close()
   }

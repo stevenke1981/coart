@@ -6,9 +6,13 @@ import { mkdtemp } from 'node:fs/promises'
 import test from 'node:test'
 import {
   readCanvasState,
+  readFollowUpRequest,
   readLatestImageAsset,
   resolveCoartPaths,
-  saveCanvasSnapshot
+  saveCanvasSnapshot,
+  updateImage,
+  writeFollowUpRequest,
+  clearFollowUpRequest
 } from '../mcp/lib/storage.ts'
 
 function snapshot() {
@@ -163,4 +167,42 @@ test('readLatestImageAsset returns the newest project-local image with visual da
   assert.equal(latest.assetUrl, '/assets/pixel.png')
   assert.equal(latest.dataBase64, 'iVBORw0KGgo=')
   assert.match(latest.updatedAt, /^\d{4}-\d{2}-\d{2}T/)
+})
+
+test('standalone follow-up requests are persisted without clipboard state', async () => {
+  const projectDir = await mkdtemp(join(tmpdir(), 'coart-follow-up-'))
+  const [first, second] = await Promise.all([
+    writeFollowUpRequest({ projectDir }, { prompt: '把圖片改成夜景', source: 'test' }),
+    writeFollowUpRequest({ projectDir }, { prompt: '再加上月亮', source: 'test' })
+  ])
+  assert.equal(first.pending, true)
+  assert.equal(second.pending, true)
+  const loaded = await readFollowUpRequest({ projectDir })
+  assert.equal(loaded.queueLength, 2)
+  const firstId = loaded.request.requestId
+  await clearFollowUpRequest({ projectDir }, firstId)
+  const remaining = await readFollowUpRequest({ projectDir })
+  assert.equal(remaining.queueLength, 1)
+  assert.notEqual(remaining.request.requestId, firstId)
+  await assert.rejects(() => clearFollowUpRequest({ projectDir }), /requestId is required/)
+})
+
+test('updateImage preserves the selected shape while keeping the previous asset', async () => {
+  const projectDir = await mkdtemp(join(tmpdir(), 'coart-update-image-'))
+  await saveCanvasSnapshot({ projectDir }, snapshot())
+  const sourcePath = join(projectDir, 'revised.png')
+  const png = Buffer.alloc(24)
+  png.write('\x89PNG', 0, 'binary')
+  png.writeUInt32BE(320, 16)
+  png.writeUInt32BE(240, 20)
+  await writeFile(sourcePath, png)
+
+  const result = await updateImage({ projectDir, imagePath: sourcePath, shapeId: 'shape:one' })
+  assert.equal(result.updated, true)
+  assert.equal(result.shapeId, 'shape:one')
+  assert.notEqual(result.assetId, 'asset:image')
+  const state = await readCanvasState({ projectDir })
+  assert.equal(state.snapshot.store['shape:one'].props.assetId, result.assetId)
+  assert.ok(state.snapshot.store['asset:image'])
+  assert.equal(state.snapshot.store[result.assetId].props.w, 320)
 })

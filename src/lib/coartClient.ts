@@ -189,9 +189,10 @@ export async function updateHtmlShape({ shapeId, htmlContent }: { shapeId: strin
 export async function sendFollowUpMessage(prompt: string): Promise<unknown> {
   if (!window.coartMcp || typeof window.coartMcp.sendFollowUpMessage !== 'function') {
     if (isExternalEditor()) {
-      if (!navigator.clipboard?.writeText) throw new Error('外部編輯視窗無法使用剪貼簿；請手動複製 prompt 回到同一 Codex 對話。')
-      await navigator.clipboard.writeText(prompt)
-      return { ok: true, externalEditor: true, copiedToClipboard: true }
+      return callExternal('/api/follow-up', 'POST', {
+        prompt,
+        source: 'coart-editor'
+      })
     }
     throw new Error('目前不是 Codex 原生 Widget；本機開發模式只提供畫布與 localStorage。')
   }

@@ -13,7 +13,10 @@ const expectedTools = [
   'save_coart_reference_image',
   'read_coart_asset',
   'get_coart_latest_image',
+  'get_coart_pending_request',
+  'clear_coart_pending_request',
   'insert_coart_image',
+  'update_coart_image',
   'insert_coart_html',
   'download_coart_file'
 ]

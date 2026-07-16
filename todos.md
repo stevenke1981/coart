@@ -48,6 +48,9 @@
 - [x] 畫布 UI 改為分區式操作介面：左上文件列、右側樣式面板、底部創作工具列與獨立縮放控制，並支援實際平移、樣式、複製與刪除操作。
 - [x] 修正文字 shape 的透明填色，讓文字編輯提交後仍停留在 Ferric 畫布並可重新選取；Enter／失焦提交、Shift+Enter 換行。
 - [x] 文字工具將「輸入文字」改為編輯器 placeholder，避免提示文字在輸入時被當成內容保留；相容既有提示 shape。
+- [x] Widget 內 follow-up 直接送入 Codex 對話；standalone editor 改以 project-local pending request 佇列取代剪貼簿。
+- [x] `get_coart_pending_request`／`clear_coart_pending_request` 工具與 token-protected `/api/follow-up` bridge。
+- [x] `update_coart_image` 保留既有 image shape 的 id、位置與尺寸，並保留舊資產供回復。
 
 ## 下一版（v0.2）
 

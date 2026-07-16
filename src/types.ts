@@ -219,6 +219,7 @@ export interface EditorLike {
 
 export interface PromptShape {
   id: string
+  type?: string
   props?: BoxProps
   meta?: CoartShapeMeta
 }

@@ -11,6 +11,7 @@ type GenerationMode = 'image' | 'html' | 'slides'
 function modeForShape(shape: AnyCanvasShape | null): GenerationMode | null {
   const kind = shape?.meta?.coartKind
   if (kind === COART_KINDS.AI_IMAGE) return 'image'
+  if (shape?.type === 'image') return 'image'
   if (kind === COART_KINDS.AI_HTML) return 'html'
   if (kind === COART_KINDS.SLIDES) return 'slides'
   return null
@@ -29,10 +30,10 @@ export function GenerationPanel({ editor, selectedShape, onStatus }: GenerationP
   const [busy, setBusy] = useState(false)
   const mode = modeForShape(selectedShape)
   const title = useMemo(() => (mode ? {
-    image: '生成 AI 圖片',
+    image: selectedShape?.type === 'image' && selectedShape.meta?.coartKind !== COART_KINDS.AI_IMAGE ? '編輯 Coart 圖片' : '生成 AI 圖片',
     html: '生成 AI HTML',
     slides: '生成 AI Slides'
-  }[mode] : ''), [mode])
+  }[mode] : ''), [mode, selectedShape])
 
   if (!mode || !editor || !selectedShape) return null
 
@@ -69,8 +70,8 @@ export function GenerationPanel({ editor, selectedShape, onStatus }: GenerationP
           ? htmlPrompt(args)
           : slidesPrompt(args)
       const delivery = await sendFollowUpMessage(message)
-      onStatus?.((delivery as { copiedToClipboard?: boolean })?.copiedToClipboard
-        ? '提示詞已複製，請貼回同一 Codex 對話'
+      onStatus?.((delivery as { pending?: boolean })?.pending
+        ? '修改指令已送入待處理佇列；回到對話說「繼續處理」即可'
         : '已將生成任務送交 Codex')
       setPrompt('')
       setFiles([])

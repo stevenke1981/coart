@@ -15,3 +15,14 @@ test('html and slides prompts name their insertion workflow', () => {
   assert.match(htmlPrompt({ userPrompt: '產品頁', shape, pageId: 'page:1' }), /insert_coart_html/)
   assert.match(slidesPrompt({ userPrompt: '季度報告', shape, pageId: 'page:1', slideCount: 5 }), /頁數：5/)
 })
+
+test('existing image prompts target the preserving update workflow', () => {
+  const output = imagePrompt({
+    userPrompt: '把背景改成夕陽',
+    shape: { id: 'shape:image', type: 'image', props: { w: 640, h: 480 }, meta: {} },
+    pageId: 'page:1',
+    references: []
+  })
+  assert.match(output, /update_coart_image/)
+  assert.doesNotMatch(output, /replaceHolder 設為 true/)
+})

@@ -5,6 +5,7 @@ const MANIFEST_FILE = 'coart-manifest.json'
 const SHARED_FILE = 'coart-shared.json'
 const SELECTION_FILE = 'coart-selection.json'
 const VIEW_FILE = 'coart-view-state.json'
+const FOLLOW_UP_FILE = 'coart-follow-up.json'
 
 export function nonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
@@ -22,7 +23,8 @@ export function resolveCoartPaths(args: any = {}) {
     manifestFile: join(canvasDir, MANIFEST_FILE),
     sharedFile: join(canvasDir, SHARED_FILE),
     selectionFile: join(canvasDir, SELECTION_FILE),
-    viewFile: join(canvasDir, VIEW_FILE)
+    viewFile: join(canvasDir, VIEW_FILE),
+    followUpFile: join(canvasDir, FOLLOW_UP_FILE)
   }
 }
 

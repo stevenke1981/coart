@@ -18,18 +18,22 @@ function referenceLines(references: PromptReference[] = []): string {
 export function imagePrompt({ userPrompt, shape, pageId, references = [] }: ImagePromptArgs): string {
   const width = shape.props?.w || 512
   const height = shape.props?.h || 512
+  const existingImage = shape.type === 'image' && shape.meta?.coartKind !== 'ai-image'
   return [
-    '[@coart](plugin://coart@personal) 生成圖片',
+    `[@coart](plugin://coart@personal) ${existingImage ? '編輯 Coart 圖片' : '生成圖片'}`,
     '',
     userPrompt.trim(),
     '',
     `目標 pageId：${pageId}`,
-    `目標 AI 圖片框 shapeId：${shape.id}`,
+    `${existingImage ? '目標圖片' : '目標 AI 圖片框'} shapeId：${shape.id}`,
     `目標尺寸：${width} × ${height} canvas units`,
     `目標比例：${ratio(width, height)}`,
     '請依此比例構圖，避免事後裁切或拉伸。',
     '使用目前可用的圖片生成能力產生最終 bitmap。',
-    '產生完成後呼叫 insert_coart_image，anchorShapeId 設為上述 shapeId，replaceHolder 設為 true。',
+    '這是 Codex 對話內的直接工作流；不要要求使用者複製或貼回提示詞。',
+    existingImage
+      ? '產生完成後呼叫 update_coart_image，shapeId 設為上述 shapeId，保留原圖片的 shape、位置與顯示尺寸。'
+      : '產生完成後呼叫 insert_coart_image，anchorShapeId 設為上述 shapeId，replaceHolder 設為 true。',
     referenceLines(references)
   ].filter(Boolean).join('\n')
 }
@@ -47,7 +51,7 @@ export function htmlPrompt({ userPrompt, shape, pageId, references = [] }: HtmlP
     `目標尺寸：${width} × ${height}`,
     '產生完整、可執行、單檔 HTML；CSS 與 JavaScript 盡量內嵌。',
     '不要引用遠端圖片；需要圖片時先保存到 Coart assets，或使用 data URL。',
-    '完成後呼叫 insert_coart_html，anchorShapeId 設為上述 shapeId，replaceHolder 設為 true。',
+    '這是 Codex 對話內的直接工作流；不要要求使用者複製或貼回提示詞。完成後呼叫 insert_coart_html，anchorShapeId 設為上述 shapeId，replaceHolder 設為 true。',
     referenceLines(references)
   ].filter(Boolean).join('\n')
 }
@@ -77,6 +81,6 @@ export function annotationPrompt({ pageId, screenshot }: AnnotationPromptArgs): 
     `標註截圖：${screenshot.assetPathRelativeToProject || screenshot.assetPath}`,
     '把箭頭與文字視為修改要求，不要將標註、選框或工具列帶入結果。',
     '保留原圖與原標註，將新圖片插入原選取內容右側。',
-    '完成後呼叫 insert_coart_image；不要覆蓋原始圖片。'
+    '這是 Codex 對話內的直接工作流；不要要求使用者複製或貼回提示詞。完成後呼叫 insert_coart_image；不要覆蓋原始圖片。'
   ].join('\n')
 }

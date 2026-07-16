@@ -8,13 +8,16 @@ import {
   downloadFile,
   insertHtml,
   insertImage,
+  updateImage,
   readAsset,
   readCanvasState,
+  readFollowUpRequest,
   readLatestImageAsset,
   readSelection,
   resolveCoartPaths,
   saveCanvasSnapshot,
   writeAsset,
+  clearFollowUpRequest,
   writeSelection,
   writeViewState
 } from './lib/storage.ts'
@@ -25,7 +28,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const manifest = JSON.parse(readFileSync(join(root, '.codex-plugin', 'plugin.json'), 'utf8'))
 export function createCoartServer() {
   const server = new McpServer({ name: manifest.name, version: manifest.version }, {
-    instructions: 'For Codex Desktop or ChatGPT workflows, use open_coart_editor to open the standalone project-local editor window. Use get_coart_latest_image or read_coart_asset when the conversation needs to see an edited image, then use insert_coart_image for placement. When an MCP Apps Widget host is available, render_coart_canvas defaults to sidebar; pass displayMode inline for an explicit inline fallback.'
+    instructions: 'For direct in-conversation editing, use render_coart_canvas with displayMode inline. Use get_coart_selection and get_coart_latest_image to target the active image, then use update_coart_image for an existing image or insert_coart_image for a new result. If the user explicitly uses the standalone editor, read get_coart_pending_request after they return to the conversation and clear it after success; never ask them to copy or paste a prompt.'
   })
 
 const targetSchema = {
@@ -152,6 +155,20 @@ server.registerTool('get_coart_latest_image', {
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
 }, async (input: any = {}) => imageResult('Loaded the latest Coart image asset.', await readLatestImageAsset(input)))
 
+server.registerTool('get_coart_pending_request', {
+  title: 'Get Coart Pending Request',
+  description: 'Use this when a standalone Coart editor queued an image or canvas edit for the current Codex conversation. It avoids clipboard copy and paste.',
+  inputSchema: { ...targetSchema },
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+}, async (input: any = {}) => result('Loaded the pending Coart conversation request.', await readFollowUpRequest(input)))
+
+server.registerTool('clear_coart_pending_request', {
+  title: 'Clear Coart Pending Request',
+  description: 'Use this after a pending Coart conversation request has been handled successfully.',
+  inputSchema: { ...targetSchema, requestId: z.string().trim().min(1) },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+}, async (input: any = {}) => result('Cleared the pending Coart conversation request.', await clearFollowUpRequest(input, input.requestId)))
+
 server.registerTool('insert_coart_image', {
   title: 'Insert Coart Image',
   description: 'Use this when a generated image must be copied into canvas assets and inserted, optionally replacing an acknowledged AI image holder.',
@@ -170,6 +187,20 @@ server.registerTool('insert_coart_image', {
   },
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
 }, async (input: any = {}) => result('Inserted Coart image.', await insertImage(input)))
+
+server.registerTool('update_coart_image', {
+  title: 'Update Coart Image',
+  description: 'Use this when an image revision from the current Codex conversation should update an existing Coart image while preserving its shape, position, and size. The old asset remains protected in project storage.',
+  inputSchema: {
+    ...targetSchema,
+    imagePath: z.string().trim(),
+    shapeId: z.string().trim().optional(),
+    pageId: z.string().trim().optional(),
+    fileName: z.string().trim().optional(),
+    altText: z.string().trim().optional()
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false }
+}, async (input: any = {}) => result('Updated Coart image.', await updateImage(input)))
 
 server.registerTool('insert_coart_html', {
   title: 'Insert Coart HTML',

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { generateKeyBetween } from 'fractional-indexing'
@@ -8,6 +8,8 @@ const ASSET_ROUTE = '/assets/'
 const STORAGE_SCHEMA_VERSION = 2
 
 type AnyRecord = Record<string, any>
+
+const followUpLocks = new Map<string, Promise<void>>()
 
 function storeRecords(store: any): AnyRecord[] {
   return Object.values(store || {}) as AnyRecord[]
@@ -88,6 +90,21 @@ async function uniqueAssetPath(assetsDir: string, requestedName: string) {
 
 function clone(value: any): any {
   return value == null ? value : structuredClone(value)
+}
+
+async function withFollowUpLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
+  const previous = followUpLocks.get(filePath) || Promise.resolve()
+  let release!: () => void
+  const current = new Promise<void>((resolvePromise) => { release = resolvePromise })
+  const chain = previous.then(() => current)
+  followUpLocks.set(filePath, chain)
+  await previous
+  try {
+    return await operation()
+  } finally {
+    release()
+    if (followUpLocks.get(filePath) === chain) followUpLocks.delete(filePath)
+  }
 }
 
 function ensureSnapshot(snapshot: any): asserts snapshot is { schema: any; store: Record<string, AnyRecord> } {
@@ -417,6 +434,52 @@ export async function writeViewState(args: any = {}, viewState?: any) {
   return { ok: true, path: paths.viewFile }
 }
 
+export async function writeFollowUpRequest(args: any = {}, request?: any) {
+  const paths = resolveCoartPaths(args)
+  const prompt = nonEmptyString(request?.prompt)
+  if (!prompt) throw new Error('Follow-up prompt is required.')
+  await mkdir(paths.canvasDir, { recursive: true })
+  const value = {
+    version: 1,
+    requestId: nonEmptyString(request?.requestId) || randomUUID(),
+    prompt,
+    source: nonEmptyString(request?.source) || 'coart-editor',
+    createdAt: nonEmptyString(request?.createdAt) || new Date().toISOString()
+  }
+  return withFollowUpLock(paths.followUpFile, async () => {
+    const current = await readJson(paths.followUpFile)
+    const queue = Array.isArray(current) ? current : current ? [current] : []
+    queue.push(value)
+    await atomicWriteJson(paths.followUpFile, queue)
+    return { ok: true, pending: true, requestId: value.requestId, queueLength: queue.length, path: paths.followUpFile, createdAt: value.createdAt }
+  })
+}
+
+export async function readFollowUpRequest(args: any = {}) {
+  const paths = resolveCoartPaths(args)
+  const current = await readJson(paths.followUpFile)
+  const queue = Array.isArray(current) ? current : current ? [current] : []
+  return { request: queue[0] || null, pending: queue.length > 0, queueLength: queue.length, path: paths.followUpFile }
+}
+
+export async function clearFollowUpRequest(args: any = {}, requestId?: string) {
+  const paths = resolveCoartPaths(args)
+  const expectedId = nonEmptyString(requestId)
+  if (!expectedId) throw new Error('requestId is required to clear a pending Coart request.')
+  return withFollowUpLock(paths.followUpFile, async () => {
+    const current = await readJson(paths.followUpFile)
+    const queue = Array.isArray(current) ? current : current ? [current] : []
+    const index = queue.findIndex((item) => item?.requestId === expectedId)
+    if (index < 0) {
+      throw new Error('Follow-up request id does not match a pending Coart request.')
+    }
+    queue.splice(index, 1)
+    if (queue.length) await atomicWriteJson(paths.followUpFile, queue)
+    else await unlink(paths.followUpFile)
+    return { ok: true, cleared: true, requestId: expectedId, queueLength: queue.length, path: paths.followUpFile }
+  })
+}
+
 export async function writeAsset(args: any = {}, { fileName, dataUrl, dataBase64, mimeType = 'application/octet-stream' }: any = {}) {
   const paths = resolveCoartPaths(args)
   await mkdir(paths.assetsDir, { recursive: true })
@@ -645,6 +708,77 @@ export async function insertImage(args: any = {}) {
 
   await saveCanvasSnapshot(args, snapshot)
   return { ok: true, pageId, anchorShapeId: anchorId, shapeId, assetId, assetPath: target.filePath, assetUrl, bounds: { x, y, w: width, h: height }, replacedHolder: replaceHolder }
+}
+
+export async function updateImage(args: any = {}) {
+  const imagePath = resolve(nonEmptyString(args.imagePath) || '')
+  if (!imagePath || !(await exists(imagePath))) throw new Error('imagePath must reference an existing image file.')
+  const mimeType = mimeForFile(imagePath)
+  if (!mimeType.startsWith('image/')) throw new Error('imagePath must be an image.')
+
+  const state = await readCanvasState(args)
+  ensureSnapshot(state.snapshot)
+  const snapshot = clone(state.snapshot)
+  const store = snapshot.store
+  const shapeId = nonEmptyString(args.shapeId) || firstSelectedShapeId(state.selection)
+  const shape = shapeId ? store[shapeId] : null
+  if (!shape || shape.typeName !== 'shape' || shape.type !== 'image') {
+    throw new Error('shapeId must reference an existing Coart image shape.')
+  }
+  const pageId = pageIdFromState(store, state.selection, state.viewState, args.pageId)
+  if (!pageId) throw new Error('Could not determine target page.')
+
+  const natural = await imageDimensions(imagePath)
+  const paths = resolveCoartPaths(args)
+  await mkdir(paths.assetsDir, { recursive: true })
+  const target = await uniqueAssetPath(paths.assetsDir, sanitizeFileName(args.fileName, basename(imagePath)))
+  await copyFile(imagePath, target.filePath)
+  const assetId = recordId('asset')
+  const assetUrl = `${ASSET_ROUTE}${encodeURIComponent(target.fileName)}`
+  const fileStat = await stat(target.filePath)
+  const previousAssetId = nonEmptyString(shape.props?.assetId)
+
+  store[assetId] = {
+    id: assetId,
+    typeName: 'asset',
+    type: 'image',
+    props: {
+      name: target.fileName,
+      src: assetUrl,
+      w: natural.width,
+      h: natural.height,
+      fileSize: fileStat.size,
+      mimeType,
+      isAnimated: mimeType === 'image/gif'
+    },
+    meta: { coartAssetUrl: assetUrl, coartUpdatedFromAssetId: previousAssetId || null }
+  }
+  shape.props = {
+    ...shape.props,
+    assetId,
+    url: '',
+    altText: nonEmptyString(args.altText) || shape.props?.altText || 'Coart updated image'
+  }
+  shape.meta = {
+    ...(shape.meta || {}),
+    coartUpdated: true,
+    coartPreviousAssetId: previousAssetId || null,
+    coartUpdatedAt: new Date().toISOString()
+  }
+
+  await saveCanvasSnapshot(args, snapshot)
+  return {
+    ok: true,
+    updated: true,
+    pageId,
+    shapeId: shape.id,
+    assetId,
+    previousAssetId,
+    assetPath: target.filePath,
+    assetUrl,
+    natural,
+    bounds: { x: shape.x || 0, y: shape.y || 0, w: shape.props?.w || natural.width, h: shape.props?.h || natural.height }
+  }
 }
 
 export async function insertHtml(args: any = {}) {

@@ -7,6 +7,7 @@ import { standaloneWidgetHtml } from './widget.ts'
 import {
   readCanvasState,
   saveCanvasSnapshot,
+  writeFollowUpRequest,
   writeAsset,
   writeSelection,
   writeViewState
@@ -144,6 +145,12 @@ async function handleRequest(session: EditorSession, request: IncomingMessage, r
   if (url.pathname === '/api/reference' && request.method === 'POST') {
     const body = await readJsonBody(request)
     sendJson(response, 200, await writeAsset({ projectDir: session.projectDir }, body))
+    return
+  }
+
+  if (url.pathname === '/api/follow-up' && request.method === 'POST') {
+    const body = await readJsonBody(request)
+    sendJson(response, 200, await writeFollowUpRequest({ projectDir: session.projectDir }, body))
     return
   }
 

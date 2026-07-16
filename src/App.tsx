@@ -101,8 +101,8 @@ export default function App() {
         mimeType: 'image/png'
       })
       const delivery = await sendFollowUpMessage(annotationPrompt({ pageId, screenshot }))
-      showStatus((delivery as { copiedToClipboard?: boolean })?.copiedToClipboard
-        ? '提示詞已複製，請貼回同一 Codex 對話'
+      showStatus((delivery as { pending?: boolean })?.pending
+        ? '標註修改指令已排入佇列；回到對話說「繼續處理」即可'
         : '已將標註修改任務送交 Codex')
     } catch (error: unknown) {
       console.error(error)

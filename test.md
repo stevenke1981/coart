@@ -22,7 +22,8 @@ npm test
 - data URL 解析。
 - v2 manifest、per-page snapshot 與 asset checksum。
 - v1 snapshot 遷移與不安全 page manifest 回復。
-- standalone editor loopback state persistence、token authorization 與 project-local latest image lookup。
+- standalone editor loopback state persistence、token authorization、pending follow-up queue 與 project-local latest image lookup。
+- existing image shape update preserving shape identity and protected previous assets。
 - 圖片／HTML／Slides prompt 是否包含 shape、尺寸與 MCP 插入工具契約。
 
 ## Build
@@ -40,7 +41,7 @@ npm run build
 npm run probe:mcp
 ```
 
-自動啟動 stdio MCP server、驗證 13 個工具、呼叫 render tool、列出並讀取 `ui://widget/coart/canvas-v0-2-7.html`，同時確認 Widget 已 inline、Fabric.js canvas 已掛載且 host bridge 存在。
+自動啟動 stdio MCP server、驗證 16 個工具、呼叫 render tool、列出並讀取 `ui://widget/coart/canvas-v0-2-7.html`，同時確認 Widget 已 inline、Ferric Canvas SVG scene 已掛載且 host bridge 存在。
 
 ## HTTP MCP smoke test
 
@@ -48,13 +49,13 @@ npm run probe:mcp
 npm run probe:http
 ```
 
-自動啟動本機 Streamable HTTP `/mcp`、連線並驗證 13 個工具，覆蓋 ChatGPT Developer Mode 所需 transport。
+自動啟動本機 Streamable HTTP `/mcp`、連線並驗證 16 個工具，覆蓋 ChatGPT Developer Mode 所需 transport。
 
 ## Standalone editor smoke test
 
 `npm test` 會在暫存專案啟動 token-authenticated loopback editor server，確認 standalone HTML 可載入、未授權請求被拒絕，以及 state POST 後能從同一個 project-local `canvas/` 讀回變更。
 
-手動驗收時，呼叫 `open_coart_editor`，在 Chrome／Edge app 視窗編輯後回到同一個 Codex task，再呼叫 `get_coart_latest_image`；MCP 回應應包含 image content，而不只是 Base64 文字。
+手動驗收時，優先呼叫 `render_coart_canvas`（`displayMode: "inline"`），在對話內選取圖片並送出修改，使用 `update_coart_image` 回寫同一個 shape。若呼叫 `open_coart_editor`，回到對話後說「繼續處理」，再呼叫 `get_coart_pending_request`；成功處理後以 `clear_coart_pending_request` 清除，並用 `get_coart_latest_image` 驗證 MCP image content。
 
 ## 手動 UI
 
