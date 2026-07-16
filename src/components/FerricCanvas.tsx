@@ -4,6 +4,7 @@ import type { AnyCanvasShape, CanvasCamera, CanvasPoint, EditorLike } from '../t
 
 interface FerricCanvasProps {
   onReady: (editor: EditorLike | null) => void
+  interactive: boolean
 }
 
 type InteractionMode = 'select' | 'pan' | 'rectangle' | 'draw'
@@ -40,7 +41,7 @@ function draftStyle(draft: DraftRectangle, camera: CanvasCamera): React.CSSPrope
   }
 }
 
-export function FerricCanvas({ onReady }: FerricCanvasProps) {
+export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
   const shellRef = useRef<HTMLDivElement>(null)
   const interactionRef = useRef<InteractionState | null>(null)
   const [editor, setEditor] = useState<CoartFerricEditor | null>(null)
@@ -91,10 +92,8 @@ export function FerricCanvas({ onReady }: FerricCanvasProps) {
         resize()
         const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize)
         if (shellRef.current) observer?.observe(shellRef.current)
-        const unlisten = nextEditor.onChange(resize)
         stopResizeListener = () => {
           observer?.disconnect()
-          unlisten()
         }
       } catch (caught: unknown) {
         const message = caught instanceof Error ? caught.message : String(caught)
@@ -137,7 +136,7 @@ export function FerricCanvas({ onReady }: FerricCanvasProps) {
   }
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
-    if (!editor || event.button !== 0 && event.button !== 1) return
+    if (!interactive || !editor || event.button !== 0 && event.button !== 1) return
     const point = pointerPosition(event)
     const shell = event.currentTarget
     shell.focus()
@@ -178,7 +177,7 @@ export function FerricCanvas({ onReady }: FerricCanvasProps) {
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
     const interaction = interactionRef.current
-    if (!editor || !interaction || interaction.pointerId !== event.pointerId) return
+    if (!interactive || !editor || !interaction || interaction.pointerId !== event.pointerId) return
     const point = pointerPosition(event)
     if (interaction.mode === 'pan') {
       editor.panBy(point.x - interaction.lastScreen.x, point.y - interaction.lastScreen.y)
@@ -210,7 +209,7 @@ export function FerricCanvas({ onReady }: FerricCanvasProps) {
 
   const onPointerUp = (event: React.PointerEvent<HTMLDivElement>): void => {
     const interaction = clearInteraction(event)
-    if (!editor || !interaction) return
+    if (!interactive || !editor || !interaction) return
     const point = pointerPosition(event)
     if (interaction.mode === 'rectangle') {
       editor.updateRectangle(editor.worldPointFromScreen(point))
@@ -242,12 +241,13 @@ export function FerricCanvas({ onReady }: FerricCanvasProps) {
 
   const onPointerCancel = (event: React.PointerEvent<HTMLDivElement>): void => {
     const interaction = clearInteraction(event)
-    if (!editor || !interaction) return
+    if (!interactive || !editor || !interaction) return
     setDrawPoints([])
     if (interaction.mode === 'select') editor.pointerCancel()
   }
 
   const onDoubleClick = (): void => {
+    if (!interactive) return
     const id = editor?.getSelectedShapeIds()[0]
     if (id) editor?.requestTextEdit(id)
   }
@@ -269,10 +269,12 @@ export function FerricCanvas({ onReady }: FerricCanvasProps) {
       onPointerCancel={onPointerCancel}
       onDoubleClick={onDoubleClick}
       onWheel={(event) => {
+        if (!interactive) return
         event.preventDefault()
         editor?.zoomAt(pointerPosition(event), event.deltaY)
       }}
       onKeyDown={(event) => {
+        if (!interactive) return
         if (editor?.handleKeyDown(event)) event.preventDefault()
       }}
     >

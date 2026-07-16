@@ -54,20 +54,20 @@ export default function App() {
         }
         if (state.viewState?.camera) nextEditor.setCamera(state.viewState.camera)
         if (state.selection?.selectedShapeIds?.length) nextEditor.setSelection(state.selection.selectedShapeIds)
+        const updateSelection = () => {
+          const ids = nextEditor.getSelectedShapeIds()
+          setSelectedShape(ids.length === 1 ? nextEditor.getShape(ids[0]) ?? null : null)
+        }
+        updateSelection()
+        nextEditor.onChange(updateSelection)
+        setEditor(nextEditor)
+        setCanvasReady(true)
         showStatus(`畫布已載入（${state.storage || 'project'}）`)
       } catch (error: unknown) {
         console.error(error)
-        showStatus(`載入失敗：${error instanceof Error ? error.message : String(error)}`)
-      } finally {
         setCanvasReady(true)
+        showStatus(`載入失敗：${error instanceof Error ? error.message : String(error)}`)
       }
-
-      const updateSelection = () => {
-        const ids = nextEditor.getSelectedShapeIds()
-        setSelectedShape(ids.length === 1 ? nextEditor.getShape(ids[0]) ?? null : null)
-      }
-      updateSelection()
-      nextEditor.onChange(updateSelection)
     })()
   }, [showStatus])
 
@@ -127,9 +127,10 @@ export default function App() {
 
   return (
     <div className="coart-app">
-      <FerricCanvas onReady={handleMount} />
+      <FerricCanvas onReady={handleMount} interactive={canvasReady} />
       <CanvasToolbar
         editor={editor}
+        ready={canvasReady}
         aspectId={aspectId}
         onAspectChange={setAspectId}
         onAnnotate={annotate}

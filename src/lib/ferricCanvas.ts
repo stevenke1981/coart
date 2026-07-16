@@ -566,8 +566,11 @@ export class CoartFerricEditor implements EditorLike {
   }
 
   setViewportSize(width: number, height: number): void {
-    this.viewportWidth = Math.max(1, width)
-    this.viewportHeight = Math.max(1, height)
+    const nextWidth = Math.max(1, width)
+    const nextHeight = Math.max(1, height)
+    if (nextWidth === this.viewportWidth && nextHeight === this.viewportHeight) return
+    this.viewportWidth = nextWidth
+    this.viewportHeight = nextHeight
     this.render()
     this.emitChange()
   }
