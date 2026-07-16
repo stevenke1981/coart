@@ -71,7 +71,8 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
             if (!active || !nextEditor) return
             const record = nextEditor.getShape(id)
             if (!record || record.type !== 'text') return
-            setTextEdit({ id, value: String(record.props.text || '文字') })
+            const savedText = String(record.props.text ?? '')
+            setTextEdit({ id, value: savedText === '輸入文字' ? '' : savedText })
           },
           onError: (message) => {
             if (active) setError(message)
@@ -302,7 +303,9 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
           className="coart-ferric-text-editor"
           style={{ left: textRect.left, top: textRect.top, width: Math.max(100, textRect.width), height: Math.max(42, textRect.height) }}
           value={textEdit.value}
+          placeholder="輸入文字"
           autoFocus
+          onFocus={(event) => event.currentTarget.select()}
           onPointerDown={(event) => event.stopPropagation()}
           onChange={(event) => setTextEdit({ ...textEdit, value: event.target.value })}
           onBlur={() => finishTextEdit()}
@@ -310,7 +313,7 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
             if (event.key === 'Escape') {
               event.preventDefault()
               finishTextEdit(true)
-            } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey || !event.shiftKey)) {
               event.preventDefault()
               finishTextEdit()
             }

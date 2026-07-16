@@ -46,6 +46,8 @@
 - [x] Widget build 暫存路徑加入 source fingerprint，避免同一個 v0.2.7 版本重用舊 `%TEMP%` bundle。
 - [x] 完整退出並重開 Codex Desktop、開新 task，驗證 `canvas-v0-2-7` 至少 16 秒持續可見，且沒有 `Transport closed` 或 host error。
 - [x] 畫布 UI 改為分區式操作介面：左上文件列、右側樣式面板、底部創作工具列與獨立縮放控制，並支援實際平移、樣式、複製與刪除操作。
+- [x] 修正文字 shape 的透明填色，讓文字編輯提交後仍停留在 Ferric 畫布並可重新選取；Enter／失焦提交、Shift+Enter 換行。
+- [x] 文字工具將「輸入文字」改為編輯器 placeholder，避免提示文字在輸入時被當成內容保留；相容既有提示 shape。
 
 ## 下一版（v0.2）
 

@@ -19,6 +19,7 @@ import type {
 
 const PAGE_ID = 'page:page'
 const DOCUMENT_ID = 'document:document'
+const TEXT_PLACEHOLDER = '輸入文字'
 const SCENE_WIDTH = 1280
 const SCENE_HEIGHT = 720
 const EMPTY_IMAGE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAwUBAScY42YAAAAASUVORK5CYII='
@@ -289,10 +290,16 @@ function objectForRecord(record: AnyCanvasShape, records: Map<string, CanvasReco
   const type = record.type || 'frame'
 
   if (type === 'text') {
+    const text = stringValue(record.props.text, stringValue(record.props.content, '文字'))
     return {
       type: 'text',
-      common: commonForRecord(record, ferricId, paint('transparent', { r: 0, g: 0, b: 0, a: 0 }), null),
-      text: stringValue(record.props.text, stringValue(record.props.content, '文字')),
+      // Ferric renders text color from the common fill. Keep the Coart text
+      // color instead of using a transparent placeholder, otherwise the DOM
+      // editor is visible only while editing and the committed text vanishes.
+      common: commonForRecord(record, ferricId, paint(record.props.fill, { r: 23, g: 22, b: 29, a: 255 }), null),
+      // Older scenes stored the editor hint as real content. Treat it as empty
+      // so the hint is rendered by the textarea placeholder instead.
+      text: text === TEXT_PLACEHOLDER ? '' : text,
       font_family: stringValue(record.props.fontFamily, 'Inter, Segoe UI, sans-serif'),
       font_size: Math.max(8, numberValue(record.props.fontSize, 28)),
       font_weight: Math.max(100, Math.min(900, Math.round(numberValue(record.props.fontWeight, 400)))),
@@ -406,7 +413,10 @@ function recordFromObject(object: FerricObject): AnyCanvasShape {
   const dimensions = objectDimensions(object, savedProps)
   const type = stringValue(metadata.coartType, object.type === 'text' ? 'text' : object.type === 'image' ? 'image' : object.type === 'line' ? 'line' : object.type === 'path' ? 'draw' : 'frame')
   const props: Record<string, unknown> = { ...savedProps, w: dimensions.w, h: dimensions.h }
-  if (object.type === 'text') props.text = stringValue(object.text, stringValue(props.text, '文字'))
+  if (object.type === 'text') {
+    const text = stringValue(object.text, stringValue(props.text, '文字'))
+    props.text = text === TEXT_PLACEHOLDER ? '' : text
+  }
   return {
     id: stringValue(metadata.coartId, createCoartShapeId()),
     typeName: 'shape',
@@ -761,7 +771,7 @@ export class CoartFerricEditor implements EditorLike {
       x: point.x,
       y: point.y,
       props: {
-        text: '輸入文字',
+        text: '',
         w: 120,
         h: 40,
         fontSize: 28,
@@ -782,7 +792,7 @@ export class CoartFerricEditor implements EditorLike {
   async commitText(id: string, value: string): Promise<void> {
     const record = this.records.get(id)
     if (!record || record.typeName !== 'shape' || record.type !== 'text') return
-    record.props = { ...record.props, text: value || '文字' }
+    record.props = { ...record.props, text: value }
     this.selectedIds = [id]
     await this.queueReload()
     this.emitChange()
