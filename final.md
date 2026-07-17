@@ -1,3 +1,19 @@
+# Coart v0.3.0 Ferric Canvas Delivery
+
+## 2026-07-17 Ferric Canvas 上游同步與創作工作流
+
+- 將 vendored Ferric Canvas 從 `8eae06b8a61371f95ae7e916778ddc86c7829e1f` 更新到 `a3e740375ae390b06292fa2a481de7fbafa1c610`，接上公開的 incremental transaction API；新增、更新、刪除與層級排序不再以完整 `loadScene` 重建 engine。
+- 補齊對齊、resize／rotation／marquee、undo／redo／clipboard、圖片拖放／貼上／裁切／替換／alt text、箭頭／線條／便條／橡皮擦與基本形狀。
+- 補齊 group／ungroup、lock、前後層順序、多頁新增／切換／排序，以及圖層面板、物件命名、zoom-to-fit、zoom-to-selection 與 minimap。
+- Slides 子物件可拖入容器、縮圖排序與自動 layout；Slides 情境工具列集中排列、匯出 HTML 與播放。AI HTML 可在 sandbox 預覽中直接互動，並以 DOM source panel 編輯後回寫物件。
+- 圖片被選取時，裁切、替換、alt text 與按標註修改集中在情境工具列；功能行為採 clean-room 實作，未複製參考專案的程式碼、文案、圖示或資產。
+
+### 驗收與邊界
+
+- 真實 Chrome Widget probe 覆蓋 resize、rotate、marquee、group／ungroup、undo／redo、clipboard、圖片貼上／裁切、HTML 編輯、多頁、圖層面板、minimap、五種 viewport 與 500 shapes 壓力頁。
+- Ferric transaction 壓力驗收期間 `loadScene` 維持 `2→2`；完整品質門檻結果記錄於 `test.md`。
+- HTML runtime 與 Slides export 使用 sandbox iframe；圖片 replacement 不刪除原始來源。既有 Vite 大型 bundle 警告仍保留為已知風險。
+
 # Coart v0.2.8 Reliability Delivery
 
 ## 2026-07-17 Ferric Canvas 互動、效能與介面改善

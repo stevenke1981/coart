@@ -13,6 +13,27 @@ bindCanvasHost(canvas, engine, {
 });
 ```
 
+Use the incremental API for normal edits instead of reloading the Scene:
+
+```ts
+const added = engine.addObject(rectObject);
+const id = added.addedIds[0];
+
+const { mutation } = engine.transaction("move and style", (tx) => {
+  tx.update(id, { common: { transform: { x: 160 }, opacity: 0.8 } });
+  tx.reorder(id, 0);
+});
+
+if (mutation.renderRequested) {
+  canvas.innerHTML = engine.renderSvg();
+}
+```
+
+`MutationResult` includes `schemaVersion`, the current revision, and added,
+updated, and removed IDs. Transaction callbacks must be synchronous; any failed
+operation rolls back the entire transaction. Object patches cannot change an
+existing ID, shape type, or Group descendant identity.
+
 When input events are captured by a separate overlay, pass the rendered SVG or
 its container as `viewportElement`. A child SVG is preferred over its container,
 and pointer coordinates are mapped through its viewBox and default
@@ -36,6 +57,7 @@ The repository pipeline runs `wasm-pack` first, then:
 ```sh
 npm ci
 npm test
+npm run test:wasm
 npm run pack:check
 ```
 

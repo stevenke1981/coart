@@ -1,3 +1,79 @@
+export const MUTATION_SCHEMA_VERSION = 1;
+/** TypeScript-native facade that serializes only the requested mutation payload. */
+export class FerricCanvasFacade {
+    #raw;
+    constructor(raw) {
+        this.#raw = raw;
+    }
+    get revision() { return this.#raw.revision; }
+    sceneJson() { return this.#raw.sceneJson(); }
+    renderSvg() { return this.#raw.renderSvg(); }
+    pointerDown(x, y, shift) {
+        return this.#raw.pointerDown(x, y, shift);
+    }
+    pointerMove(x, y) { return this.#raw.pointerMove(x, y); }
+    pointerUp(x, y) { return this.#raw.pointerUp(x, y); }
+    pointerCancel() { return this.#raw.pointerCancel(); }
+    keyDown(key, shift, ctrl, alt, meta) {
+        return this.#raw.keyDown(key, shift, ctrl, alt, meta);
+    }
+    compositionStart(start, end) {
+        return this.#raw.compositionStart(start, end);
+    }
+    compositionUpdate(text) { return this.#raw.compositionUpdate(text); }
+    compositionEnd() { return this.#raw.compositionEnd(); }
+    compositionCancel() { return this.#raw.compositionCancel(); }
+    free() { this.#raw.free?.(); }
+    addObject(object) {
+        return this.#raw.addObject(JSON.stringify(object));
+    }
+    updateObject(id, patch) {
+        return this.#raw.updateObject(id, JSON.stringify(patch));
+    }
+    removeObject(id) { return this.#raw.removeObject(id); }
+    reorderObject(id, targetIndex) {
+        return this.#raw.reorderObject(id, validateTargetIndex(targetIndex));
+    }
+    addObjects(objects) {
+        return this.applyOperations("add objects", objects.map((object) => ({ kind: "add", object })));
+    }
+    updateObjects(updates) {
+        return this.applyOperations("update objects", updates.map(({ id, patch }) => ({ kind: "update", id, patch })));
+    }
+    removeObjects(ids) {
+        return this.applyOperations("remove objects", ids.map((id) => ({ kind: "remove", id })));
+    }
+    transaction(label, callback) {
+        const operations = [];
+        const tx = {
+            add: (object) => { operations.push({ kind: "add", object }); },
+            update: (id, patch) => { operations.push({ kind: "update", id, patch }); },
+            remove: (id) => { operations.push({ kind: "remove", id }); },
+            reorder: (id, targetIndex) => {
+                operations.push({ kind: "reorder", id, targetIndex: validateTargetIndex(targetIndex) });
+            },
+        };
+        const value = callback(tx);
+        if (isPromiseLike(value)) {
+            throw new TypeError("transaction callback must be synchronous");
+        }
+        return { value, mutation: this.applyOperations(label, operations) };
+    }
+    applyOperations(label, operations) {
+        return this.#raw.transaction(label, JSON.stringify(operations));
+    }
+}
+function validateTargetIndex(value) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+        throw new RangeError("targetIndex must be a finite non-negative safe integer");
+    }
+    return value;
+}
+function isPromiseLike(value) {
+    return (typeof value === "object" || typeof value === "function")
+        && value !== null
+        && typeof value.then === "function";
+}
 export function normalizeKeyboardEvent(event) {
     return {
         key: event.key,
@@ -20,11 +96,11 @@ export async function loadWasm(input) {
 }
 export async function createCanvas(width, height, input) {
     const wasm = await loadWasm(input);
-    return new wasm.FerricCanvas(width, height);
+    return new FerricCanvasFacade(new wasm.FerricCanvas(width, height));
 }
 export async function loadScene(sceneJson, input) {
     const wasm = await loadWasm(input);
-    return wasm.FerricCanvas.fromSceneJson(sceneJson);
+    return new FerricCanvasFacade(wasm.FerricCanvas.fromSceneJson(sceneJson));
 }
 /**
  * Connects pointer, keyboard, and IME composition events to a Ferric engine.

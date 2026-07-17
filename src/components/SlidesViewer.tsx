@@ -5,11 +5,13 @@ import type { CoartHtmlShape } from '../types'
 interface SlidesViewerProps {
   slides: CoartHtmlShape[]
   onClose: () => void
+  onReorder?: (slides: CoartHtmlShape[]) => void
 }
 
-export function SlidesViewer({ slides, onClose }: SlidesViewerProps) {
+export function SlidesViewer({ slides, onClose, onReorder }: SlidesViewerProps) {
   const [index, setIndex] = useState(0)
   const [fullscreen, setFullscreen] = useState(false)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -35,7 +37,15 @@ export function SlidesViewer({ slides, onClose }: SlidesViewerProps) {
       <div className="coart-slides-body">
         <nav>
           {slides.map((item, itemIndex) => (
-            <button key={item.id} className={itemIndex === index ? 'active' : ''} onClick={() => setIndex(itemIndex)}>
+            <button key={item.id} className={itemIndex === index ? 'active' : ''} draggable onDragStart={() => setDragIndex(itemIndex)} onDragOver={(event) => event.preventDefault()} onDrop={() => {
+              if (dragIndex === null || dragIndex === itemIndex) return
+              const next = [...slides]
+              const [moved] = next.splice(dragIndex, 1)
+              next.splice(itemIndex, 0, moved)
+              setDragIndex(null)
+              setIndex(itemIndex)
+              onReorder?.(next)
+            }} onClick={() => setIndex(itemIndex)}>
               <span>{itemIndex + 1}</span>
               <iframe title={`縮圖 ${itemIndex + 1}`} srcDoc={item.props.html} sandbox="" tabIndex={-1} />
             </button>

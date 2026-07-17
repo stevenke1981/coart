@@ -16,11 +16,14 @@ test('Ferric Canvas vendor package is pinned and browser-ready', () => {
   assert.equal(vendorPackage.version, '0.1.0')
   assert.ok(existsSync(join(vendorRoot, 'dist', 'index.js')))
   assert.ok(existsSync(join(vendorRoot, 'dist', 'index.d.ts')))
+  const declarations = readFileSync(join(vendorRoot, 'dist', 'index.d.ts'), 'utf8')
+  assert.match(declarations, /transaction<T>/)
+  assert.match(declarations, /addObject\(object:/)
 
   const wasmPath = join(vendorRoot, 'wasm', 'canvas_wasm_bg.wasm')
   assert.ok(existsSync(wasmPath))
   assert.ok(statSync(wasmPath).size > 100_000)
 
   const revision = readFileSync(join(vendorRoot, 'source-revision.txt'), 'utf8')
-  assert.match(revision, /8eae06b8a61371f95ae7e916778ddc86c7829e1f/)
+  assert.match(revision, /a3e740375ae390b06292fa2a481de7fbafa1c610/)
 })

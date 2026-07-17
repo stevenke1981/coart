@@ -30,13 +30,16 @@ MCP storage layer
 - `ContextToolbar.tsx`：依一般、文字、圖片、AI 圖片、AI HTML、Slides 與混合選取切換的情境工具列。
 - `GenerationPanel.tsx`：每個 shape 獨立的 prompt、參考圖、頁數與 follow-up draft。
 - `CanvasStylePanel.tsx`：單選／多選樣式、mixed value 與 pin/collapse 狀態。
-- `SlidesViewer.tsx`：讀取 Slides frame 的子 HTML shape 並播放。
+- `MediaInspector.tsx`：圖片 alt text、非破壞性裁切參數、替換與 raster crop。
+- `HtmlEditorPanel.tsx`：sandbox live preview 與 HTML source／DOM 回寫。
+- `LayerPanel.tsx`：物件選取、命名、群組與鎖定；`Minimap.tsx` 提供全頁概覽及 camera 導航。
+- `SlidesViewer.tsx`：讀取 Slides frame 的子 HTML shape、縮圖拖曳排序與播放；情境工具列另提供自包含 HTML 匯出。
 - `src/canvas/EventBus.ts`：文件、選取、相機、工具、互動與 render diagnostics 的型別化事件匯流排。
 - `src/canvas/PointerScheduler.ts` 與 `path.ts`：每 frame 合併 pointer move、coalesced event 採樣、preview 上限與 RDP 路徑簡化。
 - `src/canvas/PersistenceQueue.ts`：snapshot、selection、view 共用的序列化持久化佇列。
 - `coartClient.ts`：MCP bridge、project target recovery、standalone editor loopback API 與 localStorage fallback。
 - `prompts.ts`：集中管理送給 Codex 的工作流提示詞。
-- `ferricCanvas.ts`：Ferric Scene JSON 與 Coart `schema/store` 快照之間的轉換 facade；records 是互動期間的唯一狀態來源，Ferric engine 在互動提交時同步，並提供 undo/redo、clipboard、layer、lock、resize 與 rotate transaction。
+- `ferricCanvas.ts`：Ferric Scene JSON 與 Coart `schema/store` 快照之間的轉換 facade；records 是互動期間的唯一狀態來源，Ferric engine 透過 incremental transaction 同步 add／update／remove／reorder，並提供 history、clipboard、snap、group、page、Slides parenting/layout 與 media metadata 操作。
 
 ## 互動與持久化資料流
 
@@ -46,7 +49,7 @@ raw pointer events
   → local transient gesture／preview
   → interaction commit
   → Coart records + history
-  → Ferric engine sync
+  → Ferric incremental transaction sync
   → typed document event
   → SerialPersistenceQueue
 
@@ -54,7 +57,7 @@ selection event → throttle save
 camera event    → debounce save
 ```
 
-拖曳、縮放、旋轉、框選與手繪期間不重建 Ferric scene；取消互動會回復 transaction 前狀態。React UI 可以訂閱彙總事件更新介面，但 autosave 只接受分離的 document／selection／camera 事件，避免純縮放或選取變更誤寫完整 snapshot。
+拖曳、縮放、旋轉、框選與手繪期間不重建 Ferric scene；提交時以增量 transaction 同步，取消互動則回復 transaction 前狀態。對齊會比較其他 shape 的邊緣／中心與 16px grid；拖入 Slides 容器後會更新 namespaced parent metadata。React UI 可以訂閱彙總事件更新介面，但 autosave 只接受分離的 document／selection／camera 事件，避免純縮放或選取變更誤寫完整 snapshot。
 
 ## MCP 模組
 

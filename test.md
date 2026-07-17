@@ -77,11 +77,11 @@ npm run probe:http
 | `npm run check` | PASS | Node/MCP TypeScript check exit 0 |
 | `npm test` | PASS | 23/23 tests passed |
 | `npm run build` | PASS | Vite production build completed |
-| `npm run probe:mcp` | PASS | 16 tools、`canvas-v0-2-8`、sidebar→fullscreen 與 inline assertions passed |
+| `npm run probe:mcp` | PASS | 16 tools、`canvas-v0-3-0`、sidebar→fullscreen 與 inline assertions passed |
 | `npm run probe:http` | PASS | Streamable HTTP `/mcp`、16 tools passed |
 | `npm run probe:widget` | PASS | 本機 Chrome 真實互動、五種 viewport 與 500 shapes 壓力測試通過 |
 
-Widget probe 覆蓋：建立與拖曳矩形（拖曳期間 `loadScene 3→3`）、resize、rotate、undo/redo、框選兩個物件、copy/paste、中文文字、1000 點手繪、Space pan、wheel zoom 不增加 document revision，以及 AI generation draft／貼上圖片保留。Viewport 為 320×640、480×720、768×640、1024×768、1440×900；500 shapes 壓力頁載入約 0.8 秒，互動期間 `loadScene 2→2`。
+Widget probe 覆蓋：建立與拖曳矩形、resize、rotate、undo/redo、框選、group/ungroup、copy/paste、中文文字、1000 點手繪、Space pan、wheel zoom、AI generation draft、圖片貼上／alt text／裁切、HTML DOM 編輯、多頁建立／切換、圖層面板與 minimap。Viewport 為 320×640、480×720、768×640、1024×768、1440×900；500 shapes 壓力頁互動期間完整 scene `loadScene 2→2`。
 
 Coverage gap: Codex Desktop 的實際右側面板仍需在安裝目前版本、重開 Desktop／新 task 後人工確認；本機 probe 已驗證 Widget 本體與送出的標準 `fullscreen` request。
 

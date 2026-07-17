@@ -1,5 +1,7 @@
 import {
   Bot,
+  ArrowLeft,
+  ArrowRight,
   ChevronDown,
   Circle,
   FileCode2,
@@ -13,12 +15,15 @@ import {
   Plus,
   Presentation,
   Redo2,
+  Eraser,
+  Layers3,
   Save,
   Shapes,
   Square,
   StickyNote,
   Type,
-  Undo2
+  Undo2,
+  Trash2
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ASPECT_PRESETS, COART_KINDS, DEFAULT_HTML_SIZE, DEFAULT_IMAGE_RESOLUTION, DEFAULT_SLIDES_SIZE } from '../constants'
@@ -57,10 +62,10 @@ function createFrame(editor: EditorLike, { kind, width, height, name, aspectRati
   window.setTimeout(() => editor.select(id), 0)
 }
 
-function createShape(editor: EditorLike, type: 'ellipse' | 'arrow' | 'note' | 'frame'): void {
+function createShape(editor: EditorLike, type: 'ellipse' | 'line' | 'arrow' | 'note' | 'frame'): void {
   const center = viewportPoint(editor)
-  const width = type === 'arrow' ? 220 : type === 'note' ? 220 : 180
-  const height = type === 'arrow' ? 80 : type === 'note' ? 160 : 140
+  const width = type === 'arrow' || type === 'line' ? 220 : type === 'note' ? 220 : 180
+  const height = type === 'arrow' || type === 'line' ? 80 : type === 'note' ? 160 : 140
   editor.createShape({
     id: createCoartShapeId(),
     type,
@@ -69,7 +74,7 @@ function createShape(editor: EditorLike, type: 'ellipse' | 'arrow' | 'note' | 'f
     props: {
       w: width,
       h: height,
-      ...(type === 'arrow' ? { x2: width, y2: height, stroke: '#2563eb', strokeWidth: 3 } : {}),
+      ...(type === 'arrow' || type === 'line' ? { x2: width, y2: height, stroke: '#2563eb', strokeWidth: 3 } : {}),
       ...(type === 'note' ? { fill: '#fff5b8', stroke: '#d9be4b', strokeWidth: 1.5 } : {}),
       ...(type === 'frame' ? { fill: 'transparent', stroke: '#98a2b3', strokeStyle: 'dashed' } : {})
     },
@@ -87,11 +92,13 @@ interface CanvasToolbarProps {
   onAnnotate: () => void
   onOpenSlides: () => void
   onSaveNow: () => void
+  layersOpen: boolean
+  onToggleLayers: () => void
 }
 
 type OpenPopover = 'shape' | 'ai' | 'more' | 'zoom' | null
 
-export function CanvasToolbar({ editor, ready, selectedShapes, generationOpen, aspectId, onAspectChange, onAnnotate, onOpenSlides, onSaveNow }: CanvasToolbarProps) {
+export function CanvasToolbar({ editor, ready, selectedShapes, generationOpen, aspectId, onAspectChange, onAnnotate, onOpenSlides, onSaveNow, layersOpen, onToggleLayers }: CanvasToolbarProps) {
   const [activeTool, setActiveTool] = useState<CanvasTool>('select')
   const [zoomPercent, setZoomPercent] = useState(100)
   const [openPopover, setOpenPopover] = useState<OpenPopover>(null)
@@ -109,6 +116,7 @@ export function CanvasToolbar({ editor, ready, selectedShapes, generationOpen, a
 
   if (!editor) return null
   const preset = ASPECT_PRESETS.find((item) => item.id === aspectId) || ASPECT_PRESETS[0]
+  const pages = editor.getPages()
 
   const activateTool = (tool: CanvasTool): void => {
     editor.setCurrentTool(tool)
@@ -127,7 +135,10 @@ export function CanvasToolbar({ editor, ready, selectedShapes, generationOpen, a
     <div className="coart-canvas-chrome" aria-busy={!ready}>
       <nav className="coart-document-bar" aria-label="畫布文件操作">
         <strong className="coart-document-title">Coart Ferric</strong>
-        <span className="coart-page-label">頁面 1</span>
+        <select className="coart-page-select" value={editor.getCurrentPageId()} onChange={(event) => editor.setCurrentPage(event.target.value)} aria-label="目前頁面">
+          {pages.map((page) => <option key={page.id} value={page.id}>{page.name}</option>)}
+        </select>
+        <button disabled={!ready} onClick={() => editor.createPage()} title="新增頁面"><Plus size={16} /></button>
         <span className="coart-save-status">自動儲存</span>
         <span className="coart-document-divider" />
         <button disabled={!ready || !editor.canUndo()} onClick={() => editor.undo()} title="復原 (Ctrl/Cmd+Z)"><Undo2 size={17} /></button>
@@ -148,9 +159,11 @@ export function CanvasToolbar({ editor, ready, selectedShapes, generationOpen, a
             <div className="coart-tool-popover is-shape" role="menu">
               <button data-coart-tool="rectangle" onClick={() => activateTool('rectangle')}><Square size={17} />矩形</button>
               <button onClick={() => { createShape(editor, 'ellipse'); setOpenPopover(null) }}><Circle size={17} />圓形</button>
+              <button onClick={() => { createShape(editor, 'line'); setOpenPopover(null) }}><Minus size={17} />線條</button>
               <button onClick={() => { createShape(editor, 'arrow'); setOpenPopover(null) }}>↗ 箭頭</button>
               <button onClick={() => { createShape(editor, 'note'); setOpenPopover(null) }}><StickyNote size={17} />便條</button>
               <button onClick={() => { createShape(editor, 'frame'); setOpenPopover(null) }}><Frame size={17} />Frame</button>
+              <button data-coart-tool="eraser" onClick={() => activateTool('eraser')}><Eraser size={17} />橡皮擦</button>
             </div>
           )}
         </div>
@@ -178,6 +191,10 @@ export function CanvasToolbar({ editor, ready, selectedShapes, generationOpen, a
               <button onClick={() => { onSaveNow(); setOpenPopover(null) }}><Save size={16} />立即儲存</button>
               <button onClick={() => { onAnnotate(); setOpenPopover(null) }}><ImagePlus size={16} />匯出標註</button>
               <button onClick={() => { onOpenSlides(); setOpenPopover(null) }}><Presentation size={16} />播放 Slides</button>
+              <button className={layersOpen ? 'active' : ''} onClick={() => { onToggleLayers(); setOpenPopover(null) }}><Layers3 size={16} />圖層面板</button>
+              <button onClick={() => editor.movePage(editor.getCurrentPageId(), 'backward')}><ArrowLeft size={16} />頁面前移</button>
+              <button onClick={() => editor.movePage(editor.getCurrentPageId(), 'forward')}><ArrowRight size={16} />頁面後移</button>
+              <button disabled={pages.length <= 1} onClick={() => { editor.deletePage(editor.getCurrentPageId()); setOpenPopover(null) }}><Trash2 size={16} />刪除頁面</button>
             </div>
           )}
         </div>

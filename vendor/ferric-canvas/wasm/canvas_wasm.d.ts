@@ -7,6 +7,7 @@
 export class FerricCanvas {
     free(): void;
     [Symbol.dispose](): void;
+    addObject(object_json: string): any;
     compositionCancel(): any;
     compositionEnd(): any;
     compositionStart(start: number, end: number): any;
@@ -21,8 +22,13 @@ export class FerricCanvas {
     pointerDown(x: number, y: number, shift: boolean): any;
     pointerMove(x: number, y: number): any;
     pointerUp(x: number, y: number): any;
+    removeObject(id: string): any;
     renderSvg(): string;
+    reorderObject(id: string, target_index: number): any;
     sceneJson(): string;
+    transaction(label: string, operations_json: string): any;
+    updateObject(id: string, patch_json: string): any;
+    readonly revision: number;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -30,6 +36,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_ferriccanvas_free: (a: number, b: number) => void;
+    readonly ferriccanvas_addObject: (a: number, b: number, c: number) => [number, number, number];
     readonly ferriccanvas_compositionCancel: (a: number) => [number, number, number];
     readonly ferriccanvas_compositionEnd: (a: number) => [number, number, number];
     readonly ferriccanvas_compositionStart: (a: number, b: number, c: number) => [number, number, number];
@@ -41,8 +48,13 @@ export interface InitOutput {
     readonly ferriccanvas_pointerDown: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly ferriccanvas_pointerMove: (a: number, b: number, c: number) => [number, number, number];
     readonly ferriccanvas_pointerUp: (a: number, b: number, c: number) => [number, number, number];
+    readonly ferriccanvas_removeObject: (a: number, b: number, c: number) => [number, number, number];
     readonly ferriccanvas_renderSvg: (a: number) => [number, number, number, number];
+    readonly ferriccanvas_reorderObject: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly ferriccanvas_revision: (a: number) => number;
     readonly ferriccanvas_sceneJson: (a: number) => [number, number, number, number];
+    readonly ferriccanvas_transaction: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly ferriccanvas_updateObject: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;

@@ -17,6 +17,8 @@ import type {
   EditorLike,
   CanvasImageOptions,
   CanvasBounds,
+  CanvasPageInfo,
+  CanvasShapePatch,
   EditorChangeMap,
   EditorEventType,
   ResizeHandle,
@@ -77,10 +79,18 @@ export interface DraftRectangle {
   end: CanvasPoint
 }
 
+export interface SnapGuide {
+  axis: 'x' | 'y'
+  position: number
+  start: number
+  end: number
+}
+
 interface FerricEditorOptions {
   onRender: (svg: string, camera: CanvasCamera) => void
   onChange?: () => void
   onDraftRectangle?: (draft: DraftRectangle | null) => void
+  onSnapGuides?: (guides: SnapGuide[]) => void
   onTextEditRequest?: (shapeId: string) => void
   onError?: (message: string) => void
 }
@@ -344,7 +354,27 @@ function objectForRecord(record: AnyCanvasShape, records: Map<string, CanvasReco
     }
   }
 
-  if (type === 'line' || type === 'arrow') {
+  if (type === 'arrow') {
+    const x2 = numberValue(record.props.x2, width)
+    const y2 = numberValue(record.props.y2, height)
+    const angle = Math.atan2(y2, x2)
+    const head = Math.max(12, numberValue(record.props.strokeWidth, 3) * 5)
+    const spread = Math.PI / 7
+    return {
+      type: 'path',
+      common: commonForRecord(record, ferricId, { kind: 'none' }, strokeForRecord(record, '#2563eb')),
+      commands: [
+        { command: 'move_to', x: 0, y: 0 },
+        { command: 'line_to', x: x2, y: y2 },
+        { command: 'move_to', x: x2, y: y2 },
+        { command: 'line_to', x: x2 - Math.cos(angle - spread) * head, y: y2 - Math.sin(angle - spread) * head },
+        { command: 'move_to', x: x2, y: y2 },
+        { command: 'line_to', x: x2 - Math.cos(angle + spread) * head, y: y2 - Math.sin(angle + spread) * head }
+      ]
+    }
+  }
+
+  if (type === 'line') {
     return {
       type: 'line',
       common: commonForRecord(record, ferricId, { kind: 'none' }, strokeForRecord(record, '#6d5ef7')),
@@ -633,6 +663,48 @@ export class CoartFerricEditor implements EditorLike {
     return this.reloadChain
   }
 
+  private syncRecords(changedIds: string[], removedIds: string[] = [], reorder = false): void {
+    if (!this.engine || this.reloadQueued || this.reloadInFlight) {
+      void this.queueReload()
+      return
+    }
+    try {
+      const changed = [...new Set(changedIds)]
+      const removed = [...new Set(removedIds)]
+      const pageShapes = this.getCurrentPageShapes()
+      this.engine.transaction('coart record sync', (tx) => {
+        for (const id of removed) {
+          const ferricId = this.ferricIds.get(id)
+          if (ferricId) tx.remove(ferricId)
+        }
+        for (const id of changed) {
+          const record = this.records.get(id)
+          if (!record || record.typeName !== 'shape' || pageForRecord(this.records, record) !== this.currentPageId) continue
+          let ferricId = this.ferricIds.get(id)
+          const exists = Boolean(ferricId)
+          if (!ferricId) {
+            ferricId = randomUuid()
+            this.ferricIds.set(id, ferricId)
+          }
+          const object = objectForRecord(record as AnyCanvasShape, this.records, ferricId)
+          if (exists) tx.update(ferricId, object)
+          else tx.add(object)
+        }
+        if (reorder) {
+          pageShapes.forEach((shape, index) => {
+            const ferricId = this.ferricIds.get(shape.id)
+            if (ferricId) tx.reorder(ferricId, index)
+          })
+        }
+      })
+      for (const id of removed) this.ferricIds.delete(id)
+      this.render()
+    } catch (error: unknown) {
+      this.reportError(error)
+      void this.queueReload()
+    }
+  }
+
   private syncFromEngine(): void {
     if (!this.engine || this.reloadQueued || this.reloadInFlight || this.transform) return
     try {
@@ -653,6 +725,77 @@ export class CoartFerricEditor implements EditorLike {
     } catch (error: unknown) {
       this.reportError(error)
     }
+  }
+
+  private snapSelection(): string[] {
+    const selected = new Set(this.selectedIds)
+    const shapes = this.selectedIds
+      .map((id) => this.records.get(id))
+      .filter((record): record is AnyCanvasShape => record?.typeName === 'shape')
+    const bounds = this.boundsFor(shapes)
+    if (!bounds) return []
+    const others = this.getCurrentPageShapes().filter((shape) => !selected.has(shape.id))
+    const threshold = 7 / Math.max(0.1, this.camera.z)
+    const xCandidates = [bounds.left, (bounds.left + bounds.right) / 2, bounds.right]
+    const yCandidates = [bounds.top, (bounds.top + bounds.bottom) / 2, bounds.bottom]
+    const xTargets = others.flatMap((shape) => {
+      const item = recordBounds(shape)
+      return [item.left, (item.left + item.right) / 2, item.right]
+    })
+    const yTargets = others.flatMap((shape) => {
+      const item = recordBounds(shape)
+      return [item.top, (item.top + item.bottom) / 2, item.bottom]
+    })
+    const bestDelta = (candidates: number[], targets: number[]): { delta: number; target: number } | null => {
+      let best: { delta: number; target: number } | null = null
+      for (const candidate of candidates) {
+        const grid = Math.round(candidate / 16) * 16
+        for (const target of [...targets, grid]) {
+          const delta = target - candidate
+          if (Math.abs(delta) <= threshold && (!best || Math.abs(delta) < Math.abs(best.delta))) best = { delta, target }
+        }
+      }
+      return best
+    }
+    const x = bestDelta(xCandidates, xTargets)
+    const y = bestDelta(yCandidates, yTargets)
+    if (!x && !y) {
+      this.options.onSnapGuides?.([])
+      return []
+    }
+    for (const shape of shapes) {
+      const record = this.records.get(shape.id)
+      if (!record || record.typeName !== 'shape') continue
+      if (x) record.x = numberValue(record.x, 0) + x.delta
+      if (y) record.y = numberValue(record.y, 0) + y.delta
+    }
+    const allBounds = this.boundsFor([...shapes, ...others]) || bounds
+    const guides: SnapGuide[] = []
+    if (x) guides.push({ axis: 'x', position: x.target, start: allBounds.top, end: allBounds.bottom })
+    if (y) guides.push({ axis: 'y', position: y.target, start: allBounds.left, end: allBounds.right })
+    this.options.onSnapGuides?.(guides)
+    return shapes.map((shape) => shape.id)
+  }
+
+  private autoParentSlides(): string[] {
+    const selected = new Set(this.selectedIds)
+    const targets = this.getCurrentPageShapes().filter((shape) => shape.meta.coartKind === 'slides' && !selected.has(shape.id))
+    const changed: string[] = []
+    for (const id of this.selectedIds) {
+      const record = this.records.get(id)
+      if (!record || record.typeName !== 'shape' || record.meta.coartKind === 'slides') continue
+      const item = recordBounds(record as AnyCanvasShape)
+      const center = { x: (item.left + item.right) / 2, y: (item.top + item.bottom) / 2 }
+      const target = targets.find((shape) => {
+        const bounds = recordBounds(shape)
+        return center.x >= bounds.left && center.x <= bounds.right && center.y >= bounds.top && center.y <= bounds.bottom
+      })
+      if (!target || record.parentId === target.id) continue
+      record.parentId = target.id
+      record.index = nextIndex(this.records, target.id)
+      changed.push(id)
+    }
+    return changed
   }
 
   private applyEffect(effect: BridgeEffect, syncScene: boolean): void {
@@ -692,6 +835,81 @@ export class CoartFerricEditor implements EditorLike {
     if (!this.records.has(pageId) || pageId === this.currentPageId) return
     this.currentPageId = pageId
     void this.queueReload()
+    this.emitCamera()
+  }
+
+  getPages(): CanvasPageInfo[] {
+    return [...this.records.values()]
+      .filter((record) => record.typeName === 'page')
+      .sort((left, right) => String(left.index || '').localeCompare(String(right.index || '')))
+      .map((record, index) => ({
+        id: record.id,
+        name: stringValue(record.name, `Page ${index + 1}`),
+        index: stringValue(record.index, `a${index + 1}`)
+      }))
+  }
+
+  createPage(name?: string): string {
+    const pages = this.getPages()
+    const id = `page:${Date.now().toString(36)}-${randomUuid().slice(0, 8)}`
+    this.pushHistory(this.snapshotRecords())
+    this.records.set(id, {
+      id,
+      typeName: 'page',
+      name: name?.trim() || `Page ${pages.length + 1}`,
+      index: `a${pages.length + 1}`,
+      props: {},
+      meta: { coartVersion: 1 }
+    })
+    this.currentPageId = id
+    this.selectedIds = []
+    void this.queueReload()
+    this.emitSelection()
+    this.emitDocument([id])
+    this.emitCamera()
+    return id
+  }
+
+  renamePage(pageId: string, name: string): void {
+    const page = this.records.get(pageId)
+    const next = name.trim()
+    if (!page || page.typeName !== 'page' || !next || page.name === next) return
+    this.pushHistory(this.snapshotRecords())
+    page.name = next
+    this.emitDocument([pageId])
+  }
+
+  movePage(pageId: string, direction: 'forward' | 'backward'): void {
+    const pages = this.getPages()
+    const index = pages.findIndex((page) => page.id === pageId)
+    const target = direction === 'forward' ? index + 1 : index - 1
+    if (index < 0 || target < 0 || target >= pages.length) return
+    this.pushHistory(this.snapshotRecords())
+    const current = this.records.get(pages[index].id)
+    const other = this.records.get(pages[target].id)
+    if (!current || !other) return
+    const value = current.index
+    current.index = other.index
+    other.index = value
+    this.emitDocument([current.id, other.id])
+  }
+
+  deletePage(pageId: string): void {
+    const pages = this.getPages()
+    if (pages.length <= 1 || !pages.some((page) => page.id === pageId)) return
+    this.pushHistory(this.snapshotRecords())
+    const deleted = [...this.records.values()]
+      .filter((record) => record.id === pageId || pageForRecord(this.records, record) === pageId)
+      .map((record) => record.id)
+    for (const id of deleted) {
+      this.records.delete(id)
+      this.ferricIds.delete(id)
+    }
+    if (this.currentPageId === pageId) this.currentPageId = pages.find((page) => page.id !== pageId)?.id || PAGE_ID
+    this.selectedIds = []
+    void this.queueReload()
+    this.emitSelection()
+    this.emitDocument(deleted)
     this.emitCamera()
   }
 
@@ -770,14 +988,55 @@ export class CoartFerricEditor implements EditorLike {
     const record = recordFromInput(input, nextIndex(this.records, input.parentId || this.currentPageId), this.currentPageId)
     this.records.set(record.id, record)
     this.selectedIds = [record.id]
-    void this.queueReload()
+    this.syncRecords([record.id])
     this.emitSelection()
     this.emitDocument([record.id])
   }
 
+  updateShape(id: string, patch: CanvasShapePatch): void {
+    const record = this.records.get(id)
+    if (!record || record.typeName !== 'shape') return
+    this.pushHistory(this.snapshotRecords())
+    if (patch.type !== undefined) record.type = patch.type
+    if (patch.x !== undefined) record.x = patch.x
+    if (patch.y !== undefined) record.y = patch.y
+    if (patch.rotation !== undefined) record.rotation = patch.rotation
+    if (patch.parentId !== undefined) record.parentId = patch.parentId
+    if (patch.index !== undefined) record.index = patch.index
+    if (patch.isLocked !== undefined) record.isLocked = patch.isLocked
+    if (patch.props) record.props = { ...record.props, ...clone(patch.props) }
+    if (patch.meta) record.meta = { ...record.meta, ...clone(patch.meta) }
+    this.syncRecords([id], [], patch.index !== undefined)
+    this.emitDocument([id])
+  }
+
+  getImageSource(id: string): string {
+    const record = this.records.get(id)
+    if (!record || record.typeName !== 'shape' || record.type !== 'image') return ''
+    const assetId = stringValue(record.props.assetId)
+    const asset = assetId ? this.records.get(assetId) : undefined
+    return stringValue(record.props.src) || stringValue(record.props.url) || stringValue(asset?.props?.src)
+  }
+
+  replaceImage(id: string, dataUrl: string, fileName = 'image.png'): void {
+    if (!dataUrl.startsWith('data:image/')) return
+    const record = this.records.get(id)
+    if (!record || record.typeName !== 'shape' || record.type !== 'image') return
+    this.pushHistory(this.snapshotRecords())
+    const previous = this.getImageSource(id)
+    record.props = { ...record.props, src: dataUrl, url: dataUrl, assetId: undefined, fileName }
+    record.meta = { ...record.meta, coartOriginalImage: record.meta.coartOriginalImage || previous }
+    this.syncRecords([id])
+    this.emitDocument([id])
+  }
+
   select(id: string): void {
     if (!this.records.has(id)) return
-    this.selectedIds = [id]
+    const record = this.records.get(id)
+    const groupId = record?.typeName === 'shape' ? stringValue(record.meta.coartGroupId) : ''
+    this.selectedIds = groupId
+      ? this.getCurrentPageShapes().filter((shape) => shape.meta.coartGroupId === groupId).map((shape) => shape.id)
+      : [id]
     this.emitSelection()
   }
 
@@ -846,7 +1105,7 @@ export class CoartFerricEditor implements EditorLike {
       duplicatedIds.push(copy.id)
     }
     this.selectedIds = duplicatedIds
-    void this.queueReload()
+    this.syncRecords(duplicatedIds)
     this.emitSelection()
     this.emitDocument(duplicatedIds)
   }
@@ -878,7 +1137,7 @@ export class CoartFerricEditor implements EditorLike {
       pasted.push(shape.id)
     }
     this.selectedIds = pasted
-    void this.queueReload()
+    this.syncRecords(pasted)
     this.emitSelection()
     this.emitDocument(pasted)
   }
@@ -918,13 +1177,103 @@ export class CoartFerricEditor implements EditorLike {
       const record = this.records.get(id)
       if (record?.typeName === 'shape') record.isLocked = shouldLock
     }
-    void this.queueReload()
+    this.syncRecords(this.selectedIds)
     this.emitDocument(this.selectedIds)
+  }
+
+  groupSelection(): void {
+    if (this.selectedIds.length < 2) return
+    this.pushHistory(this.snapshotRecords())
+    const groupId = `group:${Date.now().toString(36)}-${randomUuid().slice(0, 8)}`
+    for (const id of this.selectedIds) {
+      const record = this.records.get(id)
+      if (record?.typeName === 'shape') record.meta = { ...record.meta, coartGroupId: groupId, coartGroupName: '群組' }
+    }
+    this.syncRecords(this.selectedIds)
+    this.emitDocument(this.selectedIds)
+  }
+
+  ungroupSelection(): void {
+    const grouped = this.selectedIds.filter((id) => Boolean(this.records.get(id)?.meta.coartGroupId))
+    if (!grouped.length) return
+    this.pushHistory(this.snapshotRecords())
+    for (const id of grouped) {
+      const record = this.records.get(id)
+      if (record?.typeName !== 'shape') continue
+      const meta = { ...record.meta }
+      delete meta.coartGroupId
+      delete meta.coartGroupName
+      record.meta = meta
+    }
+    this.syncRecords(grouped)
+    this.emitDocument(grouped)
+  }
+
+  renameSelection(name: string): void {
+    const next = name.trim()
+    if (!next || !this.selectedIds.length) return
+    this.pushHistory(this.snapshotRecords())
+    const groupIds = new Set<string>()
+    for (const id of this.selectedIds) {
+      const record = this.records.get(id)
+      if (record?.typeName !== 'shape') continue
+      const groupId = stringValue(record.meta.coartGroupId)
+      if (groupId) {
+        groupIds.add(groupId)
+        record.meta = { ...record.meta, coartGroupName: next }
+      } else {
+        record.props = { ...record.props, name: next }
+      }
+    }
+    this.syncRecords(this.selectedIds)
+    this.emitDocument(this.selectedIds)
+  }
+
+  reparentSelection(parentId: string): void {
+    const parent = this.records.get(parentId)
+    if (!parent || parent.typeName !== 'shape' || !this.selectedIds.length) return
+    this.pushHistory(this.snapshotRecords())
+    const changed = this.selectedIds.filter((id) => id !== parentId)
+    changed.forEach((id, index) => {
+      const record = this.records.get(id)
+      if (record?.typeName === 'shape') {
+        record.parentId = parentId
+        record.index = `a${index + 1}`
+      }
+    })
+    this.syncRecords(changed, [], true)
+    this.emitDocument(changed)
+  }
+
+  layoutSlides(parentId: string, orderedIds?: string[]): void {
+    const parent = this.records.get(parentId)
+    if (!parent || parent.typeName !== 'shape') return
+    const children = this.getCurrentPageShapes().filter((shape) => shape.parentId === parentId)
+    const byId = new Map(children.map((shape) => [shape.id, shape]))
+    const ordered = (orderedIds?.map((id) => byId.get(id)).filter((shape): shape is AnyCanvasShape => Boolean(shape)) || children)
+    if (!ordered.length) return
+    this.pushHistory(this.snapshotRecords())
+    const gap = 28
+    const width = Math.max(160, numberValue(parent.props.w, 1048) - 48)
+    const height = width * 9 / 16
+    ordered.forEach((shape, index) => {
+      const record = this.records.get(shape.id)
+      if (!record || record.typeName !== 'shape') return
+      record.parentId = parentId
+      record.index = `a${index + 1}`
+      record.x = numberValue(parent.x, 0) + 24
+      record.y = numberValue(parent.y, 0) + 24 + index * (height + gap)
+      record.props = { ...record.props, w: width, h: height }
+    })
+    const changed = ordered.map((shape) => shape.id)
+    this.syncRecords(changed, [], true)
+    this.emitDocument(changed)
   }
 
   moveSelectionLayer(direction: 'forward' | 'backward'): void {
     if (!this.selectedIds.length) return
-    const shapes = this.getCurrentPageShapes()
+    const parentId = this.records.get(this.selectedIds[0])?.parentId
+    const shapes = this.getCurrentPageShapes().filter((shape) => shape.parentId === parentId)
     const selected = new Set(this.selectedIds)
     const ordered = direction === 'forward' ? shapes : [...shapes].reverse()
     let changed = false
@@ -948,7 +1297,7 @@ export class CoartFerricEditor implements EditorLike {
       this.undoStack.pop()
       return
     }
-    void this.queueReload()
+    this.syncRecords(this.selectedIds, [], true)
     this.emitDocument(this.selectedIds)
   }
 
@@ -964,7 +1313,7 @@ export class CoartFerricEditor implements EditorLike {
       if (patch.strokeStyle !== undefined) record.props.strokeStyle = patch.strokeStyle
       if (patch.opacity !== undefined) record.opacity = clamp(patch.opacity, 0.1, 1)
     }
-    void this.queueReload()
+    this.syncRecords(this.selectedIds)
     this.emitDocument(this.selectedIds)
   }
 
@@ -1050,7 +1399,7 @@ export class CoartFerricEditor implements EditorLike {
     this.pushHistory(this.snapshotRecords())
     record.props = { ...record.props, text: value }
     this.selectedIds = [id]
-    await this.queueReload()
+    this.syncRecords([id])
     this.emitSelection()
     this.emitDocument([id])
   }
@@ -1095,6 +1444,7 @@ export class CoartFerricEditor implements EditorLike {
       record.props.w = Math.max(1, numberValue(original.props.w, 1) * scaleX)
       record.props.h = Math.max(1, numberValue(original.props.h, 1) * scaleY)
     }
+    this.snapSelection()
     this.emitInteraction('updated', 'resize')
   }
 
@@ -1103,7 +1453,8 @@ export class CoartFerricEditor implements EditorLike {
     const session = this.transform
     this.transform = null
     this.pushHistory(session.before)
-    void this.queueReload()
+    const changed = [...new Set([...session.originals.keys(), ...this.snapSelection()])]
+    this.syncRecords(changed)
     this.emitInteraction('committed', 'resize')
     this.emitDocument([...session.originals.keys()])
   }
@@ -1139,7 +1490,9 @@ export class CoartFerricEditor implements EditorLike {
     const center = { x: (session.bounds.left + session.bounds.right) / 2, y: (session.bounds.top + session.bounds.bottom) / 2 }
     const startAngle = Math.atan2(session.start.y - center.y, session.start.x - center.x)
     const nextAngle = Math.atan2(world.y - center.y, world.x - center.x)
-    const delta = (nextAngle - startAngle) * 180 / Math.PI
+    const rawDelta = (nextAngle - startAngle) * 180 / Math.PI
+    const nearest = Math.round(rawDelta / 15) * 15
+    const delta = Math.abs(rawDelta - nearest) <= 3 ? nearest : rawDelta
     for (const original of session.originals.values()) {
       const record = this.records.get(original.id)
       if (record?.typeName === 'shape') record.rotation = numberValue(original.rotation, 0) + delta
@@ -1152,7 +1505,7 @@ export class CoartFerricEditor implements EditorLike {
     const session = this.transform
     this.transform = null
     this.pushHistory(session.before)
-    void this.queueReload()
+    this.syncRecords([...session.originals.keys()])
     this.emitInteraction('committed', 'rotate')
     this.emitDocument([...session.originals.keys()])
   }
@@ -1214,6 +1567,10 @@ export class CoartFerricEditor implements EditorLike {
       this.pointerSceneChanged ||= effect.scene_changed
       this.applyEffect(effect, true)
       if (this.pointerSceneChanged && this.pointerBefore) {
+        const snapped = this.snapSelection()
+        const reparented = this.autoParentSlides()
+        const changed = [...new Set([...snapped, ...reparented])]
+        if (changed.length) this.syncRecords(changed, [], reparented.length > 0)
         this.pushHistory(this.pointerBefore)
         this.emitDocument(this.selectedIds)
       }
@@ -1308,7 +1665,7 @@ export class CoartFerricEditor implements EditorLike {
     const deleted = [...this.selectedIds]
     for (const id of deleted) this.records.delete(id)
     this.selectedIds = []
-    await this.queueReload()
+    this.syncRecords([], deleted)
     this.emitSelection()
     this.emitDocument(deleted)
   }
@@ -1323,7 +1680,7 @@ export class CoartFerricEditor implements EditorLike {
       record.x = numberValue(record.x, 0) + dx
       record.y = numberValue(record.y, 0) + dy
     }
-    await this.queueReload()
+    this.syncRecords(this.selectedIds)
     this.emitDocument(this.selectedIds)
   }
 

@@ -127,6 +127,10 @@ if (!executable) {
       { x: duplicatedBounds.x + duplicatedBounds.width + 16, y: duplicatedBounds.y + duplicatedBounds.height + 16 })
     await page.waitForTimeout(80)
     assert(await numericAttribute(page, 'data-selected-count') >= 2, 'Marquee did not select both the original and duplicated shape.')
+    await page.getByTitle('群組').click()
+    await page.getByTitle('取消群組').waitFor({ state: 'visible' })
+    await page.getByTitle('取消群組').click()
+    await page.getByTitle('群組').waitFor({ state: 'visible' })
     await page.keyboard.press('Control+c')
     await page.keyboard.press('Control+v')
     await page.waitForTimeout(80)
@@ -182,13 +186,50 @@ if (!executable) {
     assert(await prompt.inputValue() === '海邊現代建築，日落時分', 'Per-shape generation draft was not restored after close/reopen.')
     assert(await page.locator('.coart-reference-grid img').count() === 1, 'Reference image draft was not retained after close/reopen.')
 
+    await page.getByTitle('關閉').click()
+    const recordsBeforeImagePaste = await numericAttribute(page, 'data-record-count')
+    await shell.evaluate((element) => {
+      const bytes = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAwUBAScY42YAAAAASUVORK5CYII='), (character) => character.charCodeAt(0))
+      const transfer = new DataTransfer()
+      transfer.items.add(new File([bytes], 'pasted.png', { type: 'image/png' }))
+      element.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: transfer }))
+    })
+    await page.waitForFunction((count) => Number(document.querySelector('.coart-ferric-shell')?.getAttribute('data-record-count') || 0) > count, recordsBeforeImagePaste)
+    await page.locator('.coart-context-toolbar[data-context-mode="image"]').waitFor({ state: 'visible' })
+    await page.getByTitle('裁切、替換與 alt text').click()
+    const mediaPanel = page.locator('.coart-media-inspector')
+    await mediaPanel.waitFor({ state: 'visible' })
+    await mediaPanel.getByPlaceholder('描述圖片內容').fill('一個貼入畫布的測試圖片')
+    await mediaPanel.getByRole('button', { name: '套用裁切' }).click()
+    await mediaPanel.waitFor({ state: 'detached' })
+
+    await page.getByTitle('AI 建立').click()
+    await page.getByRole('button', { name: 'AI HTML' }).click()
+    await page.getByTitle('直接編輯 HTML DOM').click()
+    const htmlPanel = page.locator('.coart-html-editor-panel')
+    await htmlPanel.waitFor({ state: 'visible' })
+    await htmlPanel.locator('textarea').fill('<main style="font:32px sans-serif;padding:32px">HTML DOM 驗收</main>')
+    await htmlPanel.getByRole('button', { name: '儲存 HTML' }).click()
+    await page.locator('.coart-html-runtime.is-interactive').waitFor({ state: 'visible' })
+
+    const pageSelect = page.locator('.coart-page-select')
+    const firstPage = await pageSelect.inputValue()
+    await page.getByTitle('新增頁面').click()
+    assert(await pageSelect.locator('option').count() === 2, 'Page creation did not add a second page.')
+    await pageSelect.selectOption(firstPage)
+
+    await page.getByTitle('更多').click()
+    await page.getByRole('button', { name: '圖層面板' }).click()
+    await page.locator('.coart-layer-panel').waitFor({ state: 'visible' })
+    assert(await page.locator('.coart-layer-list button').count() > 0, 'Layer panel did not list canvas objects.')
+    assert(await page.locator('.coart-minimap').isVisible(), 'Minimap was not visible on the desktop canvas.')
+
     await page.setViewportSize({ width: 1536, height: 1024 })
     await page.waitForTimeout(100)
     await page.screenshot({ path: screenshotPath, animations: 'disabled' })
     const screenshotBytes = (await stat(screenshotPath)).size
     assert(screenshotBytes > 10_000, 'Playwright implementation screenshot was not written.')
 
-    await page.getByTitle('關閉').click()
     await page.keyboard.press('Escape')
     const viewports = [
       { width: 320, height: 640 },

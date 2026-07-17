@@ -21,6 +21,19 @@ export class FerricCanvas {
         wasm.__wbg_ferriccanvas_free(ptr, 0);
     }
     /**
+     * @param {string} object_json
+     * @returns {any}
+     */
+    addObject(object_json) {
+        const ptr0 = passStringToWasm0(object_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.ferriccanvas_addObject(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * @returns {any}
      */
     compositionCancel() {
@@ -157,6 +170,19 @@ export class FerricCanvas {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
+     * @param {string} id
+     * @returns {any}
+     */
+    removeObject(id) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.ferriccanvas_removeObject(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * @returns {string}
      */
     renderSvg() {
@@ -178,6 +204,27 @@ export class FerricCanvas {
         }
     }
     /**
+     * @param {string} id
+     * @param {number} target_index
+     * @returns {any}
+     */
+    reorderObject(id, target_index) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.ferriccanvas_reorderObject(this.__wbg_ptr, ptr0, len0, target_index);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * @returns {number}
+     */
+    get revision() {
+        const ret = wasm.ferriccanvas_revision(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * @returns {string}
      */
     sceneJson() {
@@ -197,6 +244,38 @@ export class FerricCanvas {
         } finally {
             wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
+    }
+    /**
+     * @param {string} label
+     * @param {string} operations_json
+     * @returns {any}
+     */
+    transaction(label, operations_json) {
+        const ptr0 = passStringToWasm0(label, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(operations_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.ferriccanvas_transaction(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * @param {string} id
+     * @param {string} patch_json
+     * @returns {any}
+     */
+    updateObject(id, patch_json) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(patch_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.ferriccanvas_updateObject(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
     }
 }
 if (Symbol.dispose) FerricCanvas.prototype[Symbol.dispose] = FerricCanvas.prototype.free;

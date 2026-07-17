@@ -9,7 +9,7 @@ Use this workflow whenever the user asks to open or reopen Coart for the active 
 
 ## Current runtime
 
-Coart v0.2.8 is TypeScript-first:
+Coart v0.3.0 is TypeScript-first:
 
 - Node.js 22.6+ executes `scripts/start-mcp.ts` directly with type stripping.
 - The stdio entrypoint imports `mcp/server.ts`; do not refer to removed `.mjs` entrypoints.
@@ -43,7 +43,7 @@ Use `render_coart_canvas` with `displayMode: "sidebar"` for the normal in-task c
 }
 ```
 
-Use `"inline"` only for an explicit conversation-embedded request. For either mode, check `codex features list` first. Both `apps ... true` and `enable_mcp_apps ... true` are required. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. The expected v0.2.8 resource URI is `ui://widget/coart/canvas-v0-2-8.html`.
+Use `"inline"` only for an explicit conversation-embedded request. For either mode, check `codex features list` first. Both `apps ... true` and `enable_mcp_apps ... true` are required. If `enable_mcp_apps` is false, run `codex features enable enable_mcp_apps`, fully restart Codex Desktop, and start a new task. The expected v0.3.0 resource URI is `ui://widget/coart/canvas-v0-3-0.html`.
 
 ## Recovery
 

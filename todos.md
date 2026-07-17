@@ -65,18 +65,27 @@
 - [x] Playwright 使用本機 Chrome 的真實 Widget 互動、五種 viewport 與 500 shapes 壓力驗收
 - [x] `canvas/` ignore 規則限縮為根目錄 `/canvas/`，確保 `src/canvas/` 來源可追蹤
 
-## 下一版（v0.2）
+## 已完成（v0.3 Ferric Canvas 創作工作流）
+
+- [x] 同步 Ferric Canvas `a3e7403` 並改用 incremental add／update／remove／reorder transaction
+- [x] snap guides、圖片拖放／貼上／裁切／替換／alt text、箭頭／線條／便條／橡皮擦與基本形狀
+- [x] group／ungroup、lock、前後層、多頁新增／切換／排序、圖層面板與物件命名
+- [x] Slides 子物件拖入、縮圖排序、自動 layout、情境式 HTML 匯出與播放
+- [x] HTML runtime 直接互動、sandbox preview 與 DOM source 編輯
+- [x] zoom-to-fit、zoom-to-selection 與 minimap
+
+## 下一版
 
 - [x] 安裝 preflight 檢查 `codex features list` 的 `enable_mcp_apps`，在宿主旗標關閉時顯示可操作錯誤與重啟提示。
 - [ ] page asset lazy loading
-- [ ] HTML DOM 文字編輯器（不包含 Ferric 畫布上的一般文字物件）
+- [x] HTML DOM 文字編輯器（不包含 Ferric 畫布上的一般文字物件）
 - [ ] 圖片 slide 與混合 deck
-- [ ] Slides 拖放排序
+- [x] Slides 拖放排序
 - [ ] 多格式 export（ZIP/PDF/PPTX）
 - [ ] image record deletion protection
 - [x] Playwright Widget UI 測試（使用本機 Chrome，覆蓋拖曳、resize、rotate、undo/redo、框選、clipboard、中文、長筆跡、pan、zoom 與生成 draft）
 - [ ] Chrome／Edge standalone editor app-mode UI smoke 與跨平台 launcher coverage
-- [ ] standalone bitmap crop／paint editor（目前外部視窗提供 Ferric Canvas 畫布、圖片配置與標註流程）
+- [x] standalone／Widget bitmap crop editor（非破壞性參數並可輸出替換來源；尚未包含自由筆刷 paint）
 
 ## 公開功能對照後的優先工作（clean-room，不複製參考專案）
 

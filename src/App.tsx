@@ -3,6 +3,10 @@ import { CanvasToolbar } from './components/CanvasToolbar'
 import { ContextToolbar } from './components/ContextToolbar'
 import { FerricCanvas } from './components/FerricCanvas'
 import { GenerationPanel, modeForShape } from './components/GenerationPanel'
+import { HtmlEditorPanel } from './components/HtmlEditorPanel'
+import { LayerPanel } from './components/LayerPanel'
+import { MediaInspector } from './components/MediaInspector'
+import { Minimap } from './components/Minimap'
 import { SlidesViewer } from './components/SlidesViewer'
 import { StatusToast } from './components/StatusToast'
 import { blobToDataUrl } from './lib/dataUrl'
@@ -22,9 +26,13 @@ export default function App() {
   const [canvasReady, setCanvasReady] = useState(false)
   const [selectedShapes, setSelectedShapes] = useState<AnyCanvasShape[]>([])
   const [generationOpen, setGenerationOpen] = useState(false)
+  const [mediaOpen, setMediaOpen] = useState(false)
+  const [htmlOpen, setHtmlOpen] = useState(false)
+  const [layersOpen, setLayersOpen] = useState(false)
   const [aspectId, setAspectId] = useState('4:3')
   const [status, setStatus] = useState('')
   const [slides, setSlides] = useState<CoartHtmlShape[]>([])
+  const [slidesParentId, setSlidesParentId] = useState('')
   const statusTimerRef = useRef<number | undefined>(undefined)
   const lastSelectionRef = useRef('')
   const activeEditorRef = useRef<EditorLike | null>(null)
@@ -153,6 +161,36 @@ export default function App() {
       return
     }
     setSlides(children as CoartHtmlShape[])
+    setSlidesParentId(selectedShape.id)
+  }, [editor, selectedShape, showStatus])
+
+  const exportSlides = useCallback((): void => {
+    if (!editor || selectedShape?.meta?.coartKind !== 'slides') {
+      showStatus('請先選取 AI Slides 容器')
+      return
+    }
+    const children = editor.getCurrentPageShapes()
+      .filter((shape): shape is CoartHtmlShape => shape.parentId === selectedShape.id && shape.type === 'coart-html')
+      .sort((a, b) => String(a.index).localeCompare(String(b.index)))
+    if (!children.length) {
+      showStatus('這個 Slides 尚未包含 HTML 頁面')
+      return
+    }
+    const escapeAttribute = (value: string): string => value
+      .replaceAll('&', '&amp;')
+      .replaceAll('"', '&quot;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+    const deckName = typeof selectedShape.props.name === 'string' ? selectedShape.props.name : 'Coart Slides'
+    const frames = children.map((slide, index) => `<section class="slide${index === 0 ? ' active' : ''}"><iframe title="Slide ${index + 1}" srcdoc="${escapeAttribute(slide.props.html)}" sandbox="allow-scripts allow-forms allow-modals allow-popups"></iframe></section>`).join('')
+    const html = `<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeAttribute(deckName)}</title><style>:root{height:100%}body{margin:0;width:100%;height:100%;overflow:hidden;background:#111827}.slide{display:none;width:100%;height:100%}.slide.active{display:block}.slide iframe{width:100%;height:100%;border:0;background:white}.controls{position:fixed;right:20px;bottom:20px;display:flex;gap:8px;z-index:2}.controls button{border:0;border-radius:999px;padding:10px 14px;background:#fff;box-shadow:0 8px 24px #0005;cursor:pointer}</style></head><body>${frames}<div class="controls"><button id="prev" aria-label="上一頁">←</button><button id="next" aria-label="下一頁">→</button></div><script>const s=[...document.querySelectorAll('.slide')];let i=0;const show=n=>{i=Math.max(0,Math.min(s.length-1,n));s.forEach((x,j)=>x.classList.toggle('active',j===i))};document.querySelector('#prev').onclick=()=>show(i-1);document.querySelector('#next').onclick=()=>show(i+1);addEventListener('keydown',e=>{if(e.key==='ArrowLeft')show(i-1);if(e.key==='ArrowRight'||e.key===' ')show(i+1)});</script></body></html>`
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `${deckName}.html`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    showStatus(`已匯出 ${children.length} 頁 Slides HTML`)
   }, [editor, selectedShape, showStatus])
 
   return (
@@ -168,17 +206,27 @@ export default function App() {
         onAnnotate={annotate}
         onOpenSlides={openSlides}
         onSaveNow={saveNow}
+        layersOpen={layersOpen}
+        onToggleLayers={() => setLayersOpen((value) => !value)}
       />
       <ContextToolbar
         editor={editor}
         selectedShapes={selectedShapes}
         onAnnotate={annotate}
         onOpenSlides={openSlides}
+        onExportSlides={exportSlides}
         onGenerate={() => setGenerationOpen(true)}
+        onMedia={() => { setMediaOpen(true); setGenerationOpen(false) }}
+        onHtmlEdit={() => { setHtmlOpen(true); setGenerationOpen(false) }}
+        onLayoutSlides={() => { if (selectedShape) editor?.layoutSlides(selectedShape.id) }}
       />
       <GenerationPanel editor={editor} selectedShape={selectedShape} open={generationOpen} onClose={() => setGenerationOpen(false)} onStatus={showStatus} />
+      {editor && selectedShape?.type === 'image' && mediaOpen && <MediaInspector editor={editor} shape={selectedShape} onClose={() => setMediaOpen(false)} onStatus={showStatus} />}
+      {editor && selectedShape && (selectedShape.type === 'coart-html' || selectedShape.meta.coartKind === 'ai-html') && htmlOpen && <HtmlEditorPanel editor={editor} shape={selectedShape} onClose={() => setHtmlOpen(false)} onStatus={showStatus} />}
+      {editor && layersOpen && !generationOpen && !mediaOpen && !htmlOpen && <LayerPanel editor={editor} />}
+      {editor && <Minimap editor={editor} />}
       <StatusToast message={status} />
-      {slides.length > 0 && <SlidesViewer slides={slides} onClose={() => setSlides([])} />}
+      {slides.length > 0 && <SlidesViewer slides={slides} onClose={() => setSlides([])} onReorder={(next) => { setSlides(next); if (editor && slidesParentId) editor.layoutSlides(slidesParentId, next.map((slide) => slide.id)) }} />}
     </div>
   )
 }

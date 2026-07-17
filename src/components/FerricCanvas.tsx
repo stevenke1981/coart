@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PointerScheduler } from '../canvas/PointerScheduler'
 import { appendSample, previewPath, simplifyPath } from '../canvas/path'
-import { CoartFerricEditor, type DraftRectangle } from '../lib/ferricCanvas'
+import { CoartFerricEditor, createCoartShapeId, type DraftRectangle, type SnapGuide } from '../lib/ferricCanvas'
 import type { AnyCanvasShape, CanvasBounds, CanvasCamera, CanvasPoint, CanvasTool, EditorLike, ResizeHandle } from '../types'
 
 interface FerricCanvasProps {
@@ -83,6 +83,23 @@ function hitShape(editor: CoartFerricEditor, point: CanvasPoint): AnyCanvasShape
   }) ?? null
 }
 
+async function imageFromFile(file: File): Promise<{ source: string; width: number; height: number }> {
+  const source = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('圖片讀取失敗'))
+    reader.readAsDataURL(file)
+  })
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image()
+    element.onload = () => resolve(element)
+    element.onerror = () => reject(new Error('圖片解碼失敗'))
+    element.src = source
+  })
+  const scale = Math.min(1, 640 / Math.max(image.naturalWidth, image.naturalHeight))
+  return { source, width: Math.max(1, image.naturalWidth * scale), height: Math.max(1, image.naturalHeight * scale) }
+}
+
 export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
   const shellRef = useRef<HTMLDivElement>(null)
   const interactionRef = useRef<InteractionState | null>(null)
@@ -91,11 +108,13 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
   const processMoveRef = useRef<(sample: PointerSample) => void>(() => undefined)
   const schedulerRef = useRef<PointerScheduler<PointerSample> | null>(null)
   const spaceToolRef = useRef<CanvasTool | null>(null)
+  const snapTimerRef = useRef<number | undefined>(undefined)
   const [editor, setEditor] = useState<CoartFerricEditor | null>(null)
   const [svg, setSvg] = useState('')
   const [camera, setCamera] = useState<CanvasCamera>({ x: 0, y: 0, z: 1 })
   const [draft, setDraft] = useState<DraftRectangle | null>(null)
   const [marquee, setMarquee] = useState<{ start: CanvasPoint; end: CanvasPoint } | null>(null)
+  const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([])
   const [drawRevision, setDrawRevision] = useState(0)
   const [textEdit, setTextEdit] = useState<TextEditState | null>(null)
   const [error, setError] = useState('')
@@ -123,6 +142,12 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
           },
           onChange: () => setRevision((value) => value + 1),
           onDraftRectangle: setDraft,
+          onSnapGuides: (guides) => {
+            if (!active) return
+            window.clearTimeout(snapTimerRef.current)
+            setSnapGuides(guides)
+            if (guides.length) snapTimerRef.current = window.setTimeout(() => setSnapGuides([]), 500)
+          },
           onTextEditRequest: (id) => {
             if (!active || !nextEditor) return
             const record = nextEditor.getShape(id)
@@ -160,6 +185,7 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
     return () => {
       active = false
       schedulerRef.current?.cancel()
+      window.clearTimeout(snapTimerRef.current)
       stopResizeListener()
       nextEditor?.dispose()
       onReady(null)
@@ -189,6 +215,24 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
       window.removeEventListener('keydown', pressKey)
       window.removeEventListener('keyup', releaseSpace)
     }
+  }, [editor, interactive])
+
+  useEffect(() => {
+    if (!editor || !interactive) return undefined
+    const onPaste = (event: ClipboardEvent): void => {
+      const target = event.target
+      if (target instanceof HTMLElement && target.matches('input, textarea, [contenteditable="true"]')) return
+      const file = [...(event.clipboardData?.files || [])].find((item) => item.type.startsWith('image/'))
+      if (!file) return
+      event.preventDefault()
+      const viewport = editor.getViewportPageBounds()
+      void imageFromFile(file).then(({ source, width, height }) => editor.createShape({
+        id: createCoartShapeId(), type: 'image', x: viewport.x + viewport.w / 2 - width / 2, y: viewport.y + viewport.h / 2 - height / 2,
+        props: { src: source, w: width, h: height, fileName: file.name || 'clipboard.png', altText: '' }, meta: { coartVersion: 1 }
+      })).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : String(caught)))
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
   }, [editor, interactive])
 
   useEffect(() => {
@@ -286,6 +330,15 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
     if (editor.getCurrentTool() === 'text') {
       event.preventDefault()
       editor.createText(editor.worldPointFromScreen(point))
+      return
+    }
+    if (editor.getCurrentTool() === 'eraser') {
+      event.preventDefault()
+      const hit = hitShape(editor, point)
+      if (hit) {
+        editor.select(hit.id)
+        editor.deleteSelection()
+      }
       return
     }
     shell.setPointerCapture(event.pointerId)
@@ -420,6 +473,17 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onDoubleClick={onDoubleClick}
+      onDragOver={(event) => { if ([...event.dataTransfer.items].some((item) => item.type.startsWith('image/'))) event.preventDefault() }}
+      onDrop={(event) => {
+        const file = [...event.dataTransfer.files].find((item) => item.type.startsWith('image/'))
+        if (!file || !editor) return
+        event.preventDefault()
+        const point = editor.worldPointFromScreen(pointerPosition(event))
+        void imageFromFile(file).then(({ source, width, height }) => editor.createShape({
+          id: createCoartShapeId(), type: 'image', x: point.x - width / 2, y: point.y - height / 2,
+          props: { src: source, w: width, h: height, fileName: file.name, altText: '' }, meta: { coartVersion: 1 }
+        })).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : String(caught)))
+      }}
     >
       <div
         className="coart-ferric-scene"
@@ -427,7 +491,25 @@ export function FerricCanvas({ onReady, interactive }: FerricCanvasProps) {
         // Ferric's renderSvg output is the engine's trusted, data-URI-only renderer output.
         dangerouslySetInnerHTML={{ __html: svg }}
       />
+      {editor?.getCurrentPageShapes().filter((shape) => shape.type === 'coart-html' && typeof shape.props.html === 'string').map((shape) => {
+        const rect = editor.screenRect(shape)
+        const selected = selectedShapes.some((item) => item.id === shape.id)
+        return <iframe key={shape.id} className={`coart-html-runtime ${selected ? 'is-interactive' : ''}`} style={rect} title={String(shape.props.title || 'HTML 物件')} srcDoc={String(shape.props.html || '')} sandbox="allow-scripts allow-forms" />
+      })}
       <div className="coart-ferric-overlay" aria-hidden="true">
+        {snapGuides.map((guide, index) => guide.axis === 'x' ? (
+          <div
+            key={`x-${guide.position}-${index}`}
+            className="coart-snap-guide is-vertical"
+            style={{ left: camera.x + guide.position * camera.z, top: camera.y + guide.start * camera.z, height: (guide.end - guide.start) * camera.z }}
+          />
+        ) : (
+          <div
+            key={`y-${guide.position}-${index}`}
+            className="coart-snap-guide is-horizontal"
+            style={{ top: camera.y + guide.position * camera.z, left: camera.x + guide.start * camera.z, width: (guide.end - guide.start) * camera.z }}
+          />
+        ))}
         {selectedShapes.length > 1 && selectedShapes.map((shape) => {
           const rect = editor?.screenRect(shape)
           return rect ? <div key={shape.id} className="coart-ferric-selection is-member" style={rect} /> : null

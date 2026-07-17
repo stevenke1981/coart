@@ -2,6 +2,7 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export const __wbg_ferriccanvas_free: (a: number, b: number) => void;
+export const ferriccanvas_addObject: (a: number, b: number, c: number) => [number, number, number];
 export const ferriccanvas_compositionCancel: (a: number) => [number, number, number];
 export const ferriccanvas_compositionEnd: (a: number) => [number, number, number];
 export const ferriccanvas_compositionStart: (a: number, b: number, c: number) => [number, number, number];
@@ -13,8 +14,13 @@ export const ferriccanvas_pointerCancel: (a: number) => [number, number, number]
 export const ferriccanvas_pointerDown: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const ferriccanvas_pointerMove: (a: number, b: number, c: number) => [number, number, number];
 export const ferriccanvas_pointerUp: (a: number, b: number, c: number) => [number, number, number];
+export const ferriccanvas_removeObject: (a: number, b: number, c: number) => [number, number, number];
 export const ferriccanvas_renderSvg: (a: number) => [number, number, number, number];
+export const ferriccanvas_reorderObject: (a: number, b: number, c: number, d: number) => [number, number, number];
+export const ferriccanvas_revision: (a: number) => number;
 export const ferriccanvas_sceneJson: (a: number) => [number, number, number, number];
+export const ferriccanvas_transaction: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+export const ferriccanvas_updateObject: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_free: (a: number, b: number, c: number) => void;

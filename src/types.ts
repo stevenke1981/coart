@@ -154,7 +154,25 @@ export interface CanvasViewportBounds {
   h: number
 }
 
-export type CanvasTool = 'select' | 'pan' | 'draw' | 'rectangle' | 'text'
+export type CanvasTool = 'select' | 'pan' | 'draw' | 'rectangle' | 'text' | 'eraser'
+
+export interface CanvasPageInfo {
+  id: string
+  name: string
+  index: string
+}
+
+export interface CanvasShapePatch {
+  type?: string
+  x?: number
+  y?: number
+  rotation?: number
+  parentId?: string
+  index?: string
+  isLocked?: boolean
+  props?: Record<string, unknown>
+  meta?: CoartShapeMeta
+}
 
 export type EditorEventType = 'document' | 'selection' | 'camera' | 'tool' | 'interaction' | 'render'
 
@@ -263,6 +281,11 @@ export interface EditorLike {
   getViewportPageBounds(): CanvasViewportBounds
   getCurrentPageId(): string
   setCurrentPage(pageId: string): void
+  getPages(): CanvasPageInfo[]
+  createPage(name?: string): string
+  renamePage(pageId: string, name: string): void
+  movePage(pageId: string, direction: 'forward' | 'backward'): void
+  deletePage(pageId: string): void
   has(id: string): boolean
   getCamera(): CanvasCamera
   setCamera(camera: CanvasCamera): void
@@ -271,6 +294,9 @@ export interface EditorLike {
   getShape(id: string): AnyCanvasShape | undefined
   getCurrentPageShapes(): AnyCanvasShape[]
   createShape(input: CanvasShapeInput): void
+  updateShape(id: string, patch: CanvasShapePatch): void
+  getImageSource(id: string): string
+  replaceImage(id: string, dataUrl: string, fileName?: string): void
   select(id: string): void
   setSelection(ids: string[]): void
   selectInBounds(bounds: CanvasBounds, additive?: boolean): void
@@ -285,6 +311,11 @@ export interface EditorLike {
   canUndo(): boolean
   canRedo(): boolean
   toggleSelectionLock(): void
+  groupSelection(): void
+  ungroupSelection(): void
+  renameSelection(name: string): void
+  reparentSelection(parentId: string): void
+  layoutSlides(parentId: string, orderedIds?: string[]): void
   moveSelectionLayer(direction: 'forward' | 'backward'): void
   updateSelectedStyles(patch: CanvasStylePatch): void
   setCurrentTool(tool: CanvasTool): void
